@@ -22,7 +22,7 @@ async function main() {
   }
 
   const [exists] = await pool.query(
-    'SELECT user_id FROM users WHERE username = ? OR email = ? LIMIT 1',
+    'SELECT user_id FROM accounts WHERE username = ? OR email = ? LIMIT 1',
     [username, email]
   );
   if (exists.length) {
@@ -31,7 +31,7 @@ async function main() {
 
   const hash = await bcrypt.hash(password, BCRYPT_ROUNDS);
   const [result] = await pool.query(
-    'INSERT INTO users (username, password, email, full_name, role) VALUES (?, ?, ?, ?, ?)',
+    'INSERT INTO accounts (username, password, email, full_name, role) VALUES (?, ?, ?, ?, ?)',
     [username, hash, email, fullName, 'Admin']
   );
 

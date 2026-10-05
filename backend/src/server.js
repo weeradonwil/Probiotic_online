@@ -35,9 +35,14 @@ app.use((req, res) => {
 
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
+  if (err.type === 'entity.parse.failed') {
+    return res.status(400).json({ message: 'รูปแบบ JSON ไม่ถูกต้อง' });
+  }
   console.error(err);
   res.status(500).json({ message: 'เกิดข้อผิดพลาดภายในระบบ' });
 });
 
 const PORT = Number(process.env.PORT) || 3000;
 app.listen(PORT, () => console.log(`API running at http://localhost:${PORT}`));
+
+// หน้าที่ สร้าง Express Server เปิดใช้งาน Middleware ต่าง ๆ เชื่อม Routes กำหนด Endpoint เปิด Port

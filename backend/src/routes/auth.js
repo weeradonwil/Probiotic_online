@@ -45,7 +45,7 @@ router.post('/register', authLimiter, async (req, res) => {
   }
 
   const [dup] = await pool.query(
-    'SELECT username, email FROM users WHERE username = ? OR email = ? LIMIT 2',
+    'SELECT username, email FROM accounts WHERE username = ? OR email = ? LIMIT 2',
     [username, email]
   );
   if (dup.length) {
@@ -59,7 +59,7 @@ router.post('/register', authLimiter, async (req, res) => {
   try {
     // role กำหนดเป็น Customer เสมอ ไม่รับค่าจาก client
     const [result] = await pool.query(
-      'INSERT INTO users (username, password, email, full_name, role) VALUES (?, ?, ?, ?, ?)',
+      'INSERT INTO accounts (username, password, email, full_name, role) VALUES (?, ?, ?, ?, ?)',
       [username, hash, email, fullName, 'Customer']
     );
     return res.status(201).json({
@@ -84,7 +84,7 @@ router.post('/login', authLimiter, async (req, res) => {
   }
 
   const [rows] = await pool.query(
-    'SELECT user_id, username, password, email, full_name, role FROM users WHERE username = ? LIMIT 1',
+    'SELECT user_id, username, password, email, full_name, role FROM accounts WHERE username = ? LIMIT 1',
     [username]
   );
   const user = rows[0];
@@ -117,7 +117,7 @@ router.post('/login', authLimiter, async (req, res) => {
 // ---------- GET /api/auth/me (ต้องมี token) ----------
 router.get('/me', authenticate, async (req, res) => {
   const [rows] = await pool.query(
-    'SELECT user_id, username, email, full_name, role, created_at FROM users WHERE user_id = ?',
+    'SELECT user_id, username, email, full_name, role, created_at FROM accounts WHERE user_id = ?',
     [req.user.user_id]
   );
   if (!rows.length) return res.status(401).json({ message: 'ไม่พบบัญชีผู้ใช้' });
