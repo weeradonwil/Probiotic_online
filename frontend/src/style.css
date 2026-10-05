@@ -4,6 +4,11 @@
 :root { font-family: "Leelawadee UI", Tahoma, sans-serif; color: #123b2c; background: #fff; font-synthesis: none; text-rendering: optimizeLegibility; --green: #075b36; --deep: #073e28; --pale: #f1faf4; --border: #e0eee6; --muted: #687279; --shadow: 0 6px 24px #173f2510; }
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 320px; }
+/* หน้าร้านสูงอย่างน้อยเต็มจอ ใช้ dvh ตามพื้นที่จริงบนมือถือ และให้เนื้อหาขยายดัน footer ลงล่าง */
+.site-layout { display: flex; flex-direction: column; min-height: 100vh; min-height: 100dvh; }
+.site-main { flex: 1 0 auto; }
+/* Header/Footer คงความสูงตามเนื้อหา เมื่อหน้ายาว footer จะอยู่ท้ายเอกสารโดยไม่ทับเนื้อหา */
+.site-layout > .site-header, .site-layout > .site-footer { flex-shrink: 0; }
 a { color: inherit; text-decoration: none; }
 button, input, textarea, select { font: inherit; }
 button { cursor: pointer; }

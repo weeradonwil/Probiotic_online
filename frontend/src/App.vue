@@ -16,7 +16,7 @@ function find() { router.push({ path: '/products', query: search.value.trim() ? 
 </script>
 <template>
   <RouterView v-if="route.meta.admin" />
-  <template v-else>
+  <div v-else class="site-layout">
     <header class="site-header"><div class="page-shell site-nav">
       <Brand />
       <nav id="mobile-navigation" :class="['main-links', { open: menuOpen }]" aria-label="เมนูหลัก">
@@ -34,12 +34,12 @@ function find() { router.push({ path: '/products', query: search.value.trim() ? 
       </div>
     </div><div v-if="auth.token" class="account-strip page-shell"><span>{{ auth.user?.full_name || auth.user?.username }}</span><RouterLink v-if="auth.isAdmin" to="/admin">จัดการร้าน</RouterLink><button @click="auth.logout()">ออกจากระบบ</button></div>
     </header>
-    <main><RouterView /></main>
+    <main class="site-main"><RouterView /></main>
     <footer class="site-footer"><div class="page-shell footer-grid">
       <Brand /><div><strong>เมนู</strong><nav><RouterLink v-for="item in navigation" :key="item.to" :to="item.to">{{ item.label }}</RouterLink></nav></div>
       <div><strong>ผู้จัดทำโครงงาน</strong><p>มหาวิทยาลัยเทคโนโลยีราชมงคลธัญบุรี</p><RouterLink to="/contact" class="text-link">ข้อมูลติดต่อและสมาชิก →</RouterLink></div>
       <div class="footer-motto"><Icon name="leaf" /><span>สุขภาพดี เริ่มได้ทุกวัน</span><small>© {{ new Date().getFullYear() }} Probiotic Shop</small></div>
     </div></footer>
     <div v-if="cart.notice" class="toast" role="status"><Icon name="check" />{{ cart.notice }}<button aria-label="ปิดข้อความ" @click="cart.notice = ''"><Icon name="close" :size="17" /></button></div>
-  </template>
+  </div>
 </template>

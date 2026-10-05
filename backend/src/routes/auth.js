@@ -7,6 +7,7 @@ const { validatePassword } = require('../utils/passwordPolicy');
 const { authenticate } = require('../middleware/auth');
 
 const router = express.Router();
+router.use(require('./passwordReset'));
 const BCRYPT_ROUNDS = 12;
 
 // hash หลอก ใช้เทียบเมื่อไม่พบ username เพื่อให้เวลาตอบใกล้เคียงกัน (กันการเดา username)
@@ -84,7 +85,7 @@ router.post('/login', authLimiter, async (req, res) => {
   }
 
   const [rows] = await pool.query(
-    'SELECT user_id, username, password, email, full_name, role FROM accounts WHERE username = ? LIMIT 1',
+    'SELECT user_id, username, password, email, full_name, role, token_version FROM accounts WHERE username = ? LIMIT 1',
     [username]
   );
   const user = rows[0];
@@ -96,7 +97,8 @@ router.post('/login', authLimiter, async (req, res) => {
   }
 
   const token = jwt.sign(
-    { user_id: user.user_id, role: user.role },
+    // version เปลี่ยนเมื่อรีเซ็ตรหัสผ่าน เพื่อยกเลิก JWT เดิมทุกอุปกรณ์
+    { user_id: user.user_id, role: user.role, token_version: user.token_version },
     process.env.JWT_SECRET,
     { algorithm: 'HS256', expiresIn: process.env.JWT_EXPIRES_IN || '2h' }
   );

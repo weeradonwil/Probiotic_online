@@ -13,9 +13,13 @@ export const auth = reactive({
     const storage = remember ? localStorage : sessionStorage
     storage.setItem('session', JSON.stringify({ token, user }))
   },
-  logout() {
+  // รีเซ็ตรหัสผ่านล้าง session ได้โดยไม่บังคับเปลี่ยนหน้าทันที เพื่อให้แสดงผลสำเร็จก่อน
+  clearSession() {
     this.token = null; this.user = null
     localStorage.removeItem('session'); sessionStorage.removeItem('session')
+  },
+  logout() {
+    this.clearSession()
     location.href = '/login'
   },
 })
