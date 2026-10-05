@@ -203,6 +203,25 @@ test('Password reset integration (temporary accounts table, no real emails)', as
       finally { mailer.assertConfigured = realAssertConfigured; }
     });
 
+    await t.test('Repeated login and registration failures do not block subsequent valid requests', async () => {
+      const api = client();
+      // IP เดียวกันลองผิดเกินโควตาเดิมแล้วต้องยังสมัคร/เข้าสู่ระบบได้ ทดสอบบนตารางชั่วคราวเท่านั้น
+      for (let i = 0; i < 11; i++) {
+        assert.equal((await api('/api/auth/login', { username: 'unknown_fixture_user', password: 'Wrong123!' })).status, 401);
+      }
+      const registration = await api('/api/auth/register', {
+        username: 'unblocked_fixture', email: 'unblocked@example.test', password: originalPassword, role: 'Admin',
+      });
+      assert.equal(registration.status, 201);
+      assert.equal(registration.body.user.role, 'Customer');
+      for (let i = 0; i < 11; i++) {
+        assert.equal((await api('/api/auth/register', { username: 'invalid', email: 'invalid', password: 'weak' })).status, 400);
+      }
+      const login = await api('/api/auth/login', { username: 'unblocked_fixture', password: originalPassword });
+      assert.equal(login.status, 200);
+      assert.equal((await api('/api/auth/me', undefined, login.body.token)).status, 200);
+    });
+
     await t.test('Deleted accounts and changed roles cannot retain access with old JWTs', async () => {
       const api = client(), user = await fixture('adminfixture', 'Admin');
       const login = await api('/api/auth/login', { username: user.username, password: originalPassword });

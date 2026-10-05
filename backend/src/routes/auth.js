@@ -1,7 +1,6 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const rateLimit = require('express-rate-limit');
 const pool = require('../config/db');
 const { validatePassword } = require('../utils/passwordPolicy');
 const { authenticate } = require('../middleware/auth');
@@ -13,21 +12,12 @@ const BCRYPT_ROUNDS = 12;
 // hash หลอก ใช้เทียบเมื่อไม่พบ username เพื่อให้เวลาตอบใกล้เคียงกัน (กันการเดา username)
 const DUMMY_HASH = bcrypt.hashSync('dummy-password-for-timing', BCRYPT_ROUNDS);
 
-// จำกัดจำนวนครั้งที่ล้มเหลว: 10 ครั้ง / 15 นาที ต่อ IP (ครั้งที่สำเร็จไม่นับ)
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: 10,
-  skipSuccessfulRequests: true,
-  standardHeaders: 'draft-7',
-  legacyHeaders: false,
-  message: { message: 'พยายามหลายครั้งเกินไป กรุณารอ 15 นาทีแล้วลองใหม่' },
-});
-
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const USERNAME_RE = /^[A-Za-z0-9_]{3,50}$/;
 
 // ---------- POST /api/auth/register ----------
-router.post('/register', authLimiter, async (req, res) => {
+// สมัครสมาชิกและเข้าสู่ระบบประมวลผลทุกคำขอ ไม่ใช้โควตาร่วมกันหรือช่วงพัก 15 นาที
+router.post('/register', async (req, res) => {
   const username = String(req.body.username || '').trim();
   const email = String(req.body.email || '').trim().toLowerCase();
   const fullName = String(req.body.full_name || '').trim() || null;
@@ -76,7 +66,7 @@ router.post('/register', authLimiter, async (req, res) => {
 });
 
 // ---------- POST /api/auth/login ----------
-router.post('/login', authLimiter, async (req, res) => {
+router.post('/login', async (req, res) => {
   const username = String(req.body.username || '').trim();
   const password = typeof req.body.password === 'string' ? req.body.password : '';
 
