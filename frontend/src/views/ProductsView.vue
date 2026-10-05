@@ -1,78 +1,55 @@
 <script setup>
-import { ref, watch, onMounted } from 'vue'
+import { onMounted, onBeforeUnmount, ref, watch, computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import PageBanner from '../components/PageBanner.vue'
+import ProductCard from '../components/ProductCard.vue'
+import Icon from '../components/Icon.vue'
 import { api } from '../api'
-
-const products = ref([])
-const categories = ref([])
-const q = ref('')
-const categoryId = ref('')
-const total = ref(0)
-const error = ref('')
-const loading = ref(false)
-
+const route = useRoute(), router = useRouter()
+const products = ref([]), categories = ref([]), error = ref(''), loading = ref(true), total = ref(0)
+const query = ref(String(route.query.q || '')), category = ref(String(route.query.category_id || '')), sort = ref('default'), page = ref(1)
+const pages = computed(() => Math.max(1, Math.ceil(total.value / 8)))
+let timer, requestNumber = 0
+// หมายเลข request ป้องกันผลค้นหาเก่าที่ตอบช้ากว่าเขียนทับผลล่าสุด
 async function load() {
-  loading.value = true
-  error.value = ''
+  const current = ++requestNumber
+  loading.value = true; error.value = ''
   try {
-    const params = new URLSearchParams({ limit: 50 })
-    if (q.value.trim()) params.set('q', q.value.trim())
-    if (categoryId.value) params.set('category_id', categoryId.value)
-    const res = await api('/products?' + params)
-    products.value = res.data
-    total.value = res.total
-  } catch (e) {
-    error.value = e.message
-  } finally {
-    loading.value = false
-  }
+    const params = new URLSearchParams({ limit: 8, page: page.value, sort: sort.value })
+    if (query.value.trim()) params.set('q', query.value.trim())
+    if (category.value) params.set('category_id', category.value)
+    const result = await api('/products?' + params)
+    if (current === requestNumber) { products.value = result.data; total.value = result.total }
+  } catch (e) { if (current === requestNumber) error.value = e.message }
+  finally { if (current === requestNumber) loading.value = false }
 }
-
-let timer
-watch(q, () => {
-  clearTimeout(timer)
-  timer = setTimeout(load, 300) // รอผู้ใช้พิมพ์เสร็จก่อนค่อยค้นหา
-})
-watch(categoryId, load)
-
-onMounted(async () => {
-  categories.value = (await api('/categories')).data
+function applyFilters() {
+  page.value = 1
+  const params = {}
+  if (query.value.trim()) params.q = query.value.trim()
+  if (category.value) params.category_id = category.value
+  router.replace({ query: params })
   load()
+}
+watch(query, () => { clearTimeout(timer); timer = setTimeout(applyFilters, 300) })
+watch([category, sort], applyFilters)
+watch(() => route.query, (params) => {
+  if (String(params.q || '') !== query.value) query.value = String(params.q || '')
+  if (String(params.category_id || '') !== category.value) category.value = String(params.category_id || '')
 })
-
-const baht = (n) => n.toLocaleString('th-TH', { minimumFractionDigits: 2 })
+function changePage(value) { page.value = value; load() }
+onMounted(async () => {
+  try { categories.value = (await api('/categories')).data } catch (e) { error.value = e.message }
+  await load()
+})
+onBeforeUnmount(() => { clearTimeout(timer); requestNumber++ })
 </script>
-
-<template>
-  <h1 class="mb-4 text-2xl font-bold">สินค้าทั้งหมด</h1>
-
-  <div class="mb-4 flex flex-wrap gap-3">
-    <input v-model="q" placeholder="ค้นหาสินค้า..." class="w-64 rounded border px-3 py-2" />
-    <div class="flex flex-wrap gap-2">
-      <button
-        v-for="c in [{ category_id: '', name: 'ทั้งหมด' }, ...categories]"
-        :key="c.category_id"
-        class="rounded-full border px-3 py-1 text-sm"
-        :class="categoryId === c.category_id ? 'border-emerald-700 bg-emerald-700 text-white' : 'hover:bg-emerald-50'"
-        @click="categoryId = c.category_id"
-      >
-        {{ c.name }}
-      </button>
-    </div>
-  </div>
-
-  <p v-if="error" class="rounded bg-red-50 p-3 text-red-700">{{ error }}</p>
-  <p v-else-if="!loading && !products.length" class="text-gray-500">ไม่พบสินค้า</p>
-
-  <div class="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-    <article v-for="p in products" :key="p.product_id" class="flex flex-col rounded-xl border p-3">
-      <div class="mb-3 flex aspect-square items-center justify-center rounded-lg bg-emerald-50 text-5xl text-emerald-700">
-        {{ p.name[0] }}
-      </div>
-      <p class="text-xs text-gray-500">{{ p.category_name }}</p>
-      <h2 class="font-semibold">{{ p.name }}</h2>
-      <p class="mt-auto pt-2 text-lg font-bold text-emerald-800">฿{{ baht(p.price) }}</p>
-      <p v-if="p.stock === 0" class="text-sm text-red-600">สินค้าหมด</p>
-      <p v-else class="text-sm text-gray-500">คงเหลือ {{ p.stock }}</p>
-    </article>
-  </div>
-</template>
+<template><PageBanner title="ผลิตภัณฑ์ของเรา" subtitle="เลือกผลิตภัณฑ์ที่เหมาะกับความต้องการของคุณ" /><section class="page-shell section catalog">
+  <div class="catalog-toolbar"><div class="input-icon search-field"><Icon name="search" /><input v-model="query" type="search" placeholder="ค้นหาสินค้า..." aria-label="ค้นหาสินค้า" /></div><div class="filter-list"><button :class="['filter-chip', { active: !category }]" @click="category = ''">สินค้าทั้งหมด</button><button v-for="c in categories" :key="c.category_id" :class="['filter-chip', { active: category === String(c.category_id) }]" @click="category = String(c.category_id)">{{ c.name }}</button></div><select v-model="sort" aria-label="เรียงสินค้า"><option value="default">เรียงตามลำดับ</option><option value="price_asc">ราคาต่ำไปสูง</option><option value="price_desc">ราคาสูงไปต่ำ</option><option value="newest">เพิ่มล่าสุด</option></select></div>
+  <div class="catalog-summary"><span>{{ total }} รายการ</span><span>ดูสินค้าได้โดยไม่ต้องสมัครสมาชิก</span></div>
+  <p v-if="error" class="error-box" role="alert">{{ error }} <button class="text-link" @click="load">ลองอีกครั้ง</button></p>
+  <div v-else-if="loading" class="product-grid"><div v-for="n in 8" :key="n" class="skeleton-card" aria-label="กำลังโหลดสินค้า"></div></div>
+  <p v-else-if="!products.length" class="empty-state">ไม่พบสินค้าที่ตรงกับคำค้นหา</p>
+  <div v-else class="product-grid"><ProductCard v-for="p in products" :key="p.product_id" :product="p" /></div>
+  <nav v-if="pages > 1" class="pagination" aria-label="แบ่งหน้าสินค้า"><button :disabled="page === 1" @click="changePage(page - 1)" aria-label="หน้าก่อนหน้า">‹</button><span>หน้า {{ page }} / {{ pages }}</span><button :disabled="page === pages" @click="changePage(page + 1)" aria-label="หน้าถัดไป">›</button></nav>
+</section></template>

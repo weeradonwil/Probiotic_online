@@ -1,0 +1,1 @@
+<template><section class="page-shell section"><div class="panel empty-state"><h1>ไม่พบหน้าที่คุณต้องการ</h1><p>ตรวจสอบที่อยู่ หรือกลับไปเลือกชมสินค้าของเรา</p><RouterLink to="/" class="button button-primary">กลับหน้าแรก</RouterLink></div></section></template>

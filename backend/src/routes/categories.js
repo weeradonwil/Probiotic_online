@@ -1,11 +1,9 @@
 const express = require('express');
 const pool = require('../config/db');
-const { authenticate } = require('../middleware/auth');
-
 const router = express.Router();
 
-// GET /api/categories  (ต้อง login) ใช้แสดงตัวกรองหมวดหมู่ และ dropdown ในหน้า Admin
-router.get('/', authenticate, async (req, res) => {
+// หมวดหมู่เป็นข้อมูลประกอบหน้าร้าน จึงเปิดให้อ่านได้โดยไม่ต้องเข้าสู่ระบบ
+router.get('/', async (req, res) => {
   const [rows] = await pool.query(
     'SELECT category_id, name, description FROM categories ORDER BY category_id'
   );

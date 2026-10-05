@@ -1,0 +1,10 @@
+<script setup>
+import PageBanner from '../components/PageBanner.vue'
+import Icon from '../components/Icon.vue'
+const members = [{ name: 'นาย วีรดนย์ วิลัยมาตย์', id: '116710906045-5' }, { name: 'นาย สุรชัย พูลชาติ', id: '116710906039-8' }, { name: 'นาย อัครวินท์ ดีจิวารณ์', id: '116710906057-0' }]
+// ไม่มีอีเมล/ที่อยู่ร้านที่ยืนยันแล้ว จึงใช้ข้อมูลสถาบันตามรายงานและไม่แสดงข้อมูลสมมติจากภาพ
+</script>
+<template><PageBanner title="ติดต่อเรา" subtitle="ข้อมูลโครงงานและสมาชิกผู้จัดทำ" /><section class="page-shell section"><div class="contact-grid"><article class="panel"><h2>ข้อมูลโครงงาน</h2><div class="contact-row"><span class="circle-icon"><Icon name="pin" /></span><div><strong>สถาบัน</strong><p>มหาวิทยาลัยเทคโนโลยีราชมงคลธัญบุรี</p></div></div><div class="contact-row"><span class="circle-icon"><Icon name="order" /></span><div><strong>รายวิชา 09143322</strong><p>การพัฒนาระบบงานฐานข้อมูลโดยโปรแกรมประยุกต์</p></div></div><div class="contact-row"><span class="circle-icon"><Icon name="clock" /></span><div><strong>ภาคการศึกษา</strong><p>ภาคเรียนที่ 1 ปีการศึกษา 2569</p></div></div><div class="contact-visual"><Icon name="leaf" :size="56" /><span>Probiotic Shop</span></div></article>
+  <form class="panel form-stack" @submit.prevent><h2>ส่งข้อความถึงเรา</h2><p class="notice">ช่องทางส่งข้อความยังไม่เปิดให้บริการ</p><label>ชื่อ–นามสกุล<input disabled placeholder="ชื่อ–นามสกุล" /></label><label>Email<input disabled type="email" placeholder="example@email.com" /></label><label>หัวข้อ<input disabled placeholder="ระบุหัวข้อ" /></label><label>รายละเอียด<textarea disabled rows="4" placeholder="รายละเอียดข้อความ"></textarea></label><button class="button button-primary" disabled><Icon name="mail" />ส่งข้อความ</button></form></div>
+  <h2 class="section-subheading">สมาชิกผู้จัดทำ</h2><div class="feature-grid"><article v-for="member in members" :key="member.id" class="panel member-card"><span class="circle-icon"><Icon name="user" :size="30" /></span><div><h3>{{ member.name }}</h3><p>{{ member.id }}</p></div></article></div>
+</section></template>

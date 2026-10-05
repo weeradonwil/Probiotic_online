@@ -24,6 +24,11 @@ app.get('/api/health', async (req, res) => {
 
 app.use('/api/auth', require('./routes/auth'));
 
+// การอ่านสินค้าและหมวดหมู่เปิดให้บุคคลทั่วไป ส่วนการแก้ไขสินค้าตรวจสิทธิ์ใน route
+app.use('/api/products', require('./routes/products'));
+app.use('/api/categories', require('./routes/categories'));
+app.use('/api/admin', require('./routes/admin'));
+
 // ชั่วคราว: ใช้ทดสอบว่า Customer เข้าไม่ได้ / Admin เข้าได้ (จะแทนด้วย route จริงภายหลัง)
 app.get('/api/admin/ping', authenticate, requireRole('Admin'), (req, res) => {
   res.json({ message: 'สวัสดี Admin', user: req.user });

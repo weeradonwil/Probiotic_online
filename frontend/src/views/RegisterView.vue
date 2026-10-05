@@ -1,40 +1,24 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import AuthPanel from '../components/AuthPanel.vue'
+import PasswordInput from '../components/PasswordInput.vue'
+import PasswordRules from '../components/PasswordRules.vue'
+import Icon from '../components/Icon.vue'
 import { api } from '../api'
-
 const router = useRouter()
 const form = ref({ username: '', email: '', full_name: '', password: '' })
+const confirm = ref('')
 const errors = ref([])
 const loading = ref(false)
-
 async function submit() {
   errors.value = []
+  // ยืนยันรหัสผ่านตรวจที่ UI ส่วนกฎความปลอดภัย backend ตรวจซ้ำทุกครั้ง
+  if (form.value.password !== confirm.value) { errors.value = ['รหัสผ่านทั้งสองช่องไม่ตรงกัน']; return }
   loading.value = true
-  try {
-    await api('/auth/register', { method: 'POST', body: form.value })
-    router.push('/login')
-  } catch (e) {
-    errors.value = e.errors?.length ? e.errors : [e.message]
-  } finally {
-    loading.value = false
-  }
+  try { await api('/auth/register', { method: 'POST', body: form.value }); router.push('/login?registered=1') }
+  catch (e) { errors.value = e.errors?.length ? e.errors : [e.message] }
+  finally { loading.value = false }
 }
 </script>
-
-<template>
-  <form class="mx-auto max-w-sm space-y-4 rounded-xl border p-6" @submit.prevent="submit">
-    <h1 class="text-2xl font-bold">สมัครสมาชิก</h1>
-    <ul v-if="errors.length" class="list-disc rounded bg-red-50 p-2 pl-6 text-sm text-red-700">
-      <li v-for="m in errors" :key="m">{{ m }}</li>
-    </ul>
-    <input v-model="form.username" required placeholder="Username (a-z, 0-9, _ ยาว 3-50)" class="w-full rounded border px-3 py-2" />
-    <input v-model="form.email" required type="email" placeholder="อีเมล" class="w-full rounded border px-3 py-2" />
-    <input v-model="form.full_name" placeholder="ชื่อ-นามสกุล" class="w-full rounded border px-3 py-2" />
-    <input v-model="form.password" required type="password" placeholder="Password" autocomplete="new-password" class="w-full rounded border px-3 py-2" />
-    <p class="text-xs text-gray-500">รหัสผ่าน: อย่างน้อย 8 ตัว มีพิมพ์เล็ก พิมพ์ใหญ่ ตัวเลข และอักขระพิเศษ ห้ามมีช่องว่าง</p>
-    <button :disabled="loading" class="w-full rounded bg-emerald-700 py-2 font-semibold text-white disabled:opacity-50">
-      {{ loading ? 'กำลังสมัคร...' : 'สมัครสมาชิก' }}
-    </button>
-  </form>
-</template>
+<template><AuthPanel title="สมัครสมาชิก" subtitle="สร้างบัญชีของคุณกับ Probiotic Shop"><form class="form-stack register-form" @submit.prevent="submit"><ul v-if="errors.length" class="error-box" role="alert"><li v-for="message in errors" :key="message">{{ message }}</li></ul><label for="full-name">ชื่อ–นามสกุล<input id="full-name" v-model="form.full_name" maxlength="100" autocomplete="name" placeholder="ชื่อ–นามสกุล" /></label><label for="register-user">Username<input id="register-user" v-model="form.username" required minlength="3" maxlength="50" pattern="[A-Za-z0-9_]{3,50}" autocomplete="username" placeholder="Username (ตัวอักษร ตัวเลข หรือ _)" /></label><label for="register-email">Email<input id="register-email" v-model="form.email" required type="email" maxlength="100" autocomplete="email" placeholder="Email" /></label><PasswordInput id="register-password" v-model="form.password" label="รหัสผ่าน" /><PasswordRules :password="form.password" /><PasswordInput id="confirm-password" v-model="confirm" label="ยืนยันรหัสผ่าน" /><button :disabled="loading" class="button button-primary">{{ loading ? 'กำลังสมัคร...' : 'สมัครสมาชิก' }}<Icon name="arrow" /></button><p class="auth-bottom">มีบัญชีอยู่แล้ว? <RouterLink to="/login" class="text-link">เข้าสู่ระบบ →</RouterLink></p></form></AuthPanel></template>

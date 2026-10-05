@@ -1,39 +1,27 @@
 <script setup>
 import { ref } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import AuthPanel from '../components/AuthPanel.vue'
+import PasswordInput from '../components/PasswordInput.vue'
+import Icon from '../components/Icon.vue'
 import { api } from '../api'
 import { auth } from '../auth'
-
-const router = useRouter()
 const route = useRoute()
+const router = useRouter()
 const form = ref({ username: '', password: '' })
+const remember = ref(false)
 const error = ref('')
 const loading = ref(false)
-
 async function submit() {
-  error.value = ''
-  loading.value = true
+  error.value = ''; loading.value = true
   try {
     const data = await api('/auth/login', { method: 'POST', body: form.value })
-    auth.setSession(data.token, data.user)
-    router.push(route.query.redirect || '/products')
-  } catch (e) {
-    error.value = e.message
-  } finally {
-    loading.value = false
-  }
+    auth.setSession(data.token, data.user, remember.value)
+    // รับ redirect เฉพาะเส้นทางภายใน และแยก landing page ของ Admin จากลูกค้า
+    const redirect = typeof route.query.redirect === 'string' && route.query.redirect.startsWith('/') && !route.query.redirect.startsWith('//') ? route.query.redirect : data.user.role === 'Admin' ? '/admin' : '/products'
+    await router.push(redirect)
+  } catch (e) { error.value = e.message }
+  finally { loading.value = false }
 }
 </script>
-
-<template>
-  <form class="mx-auto max-w-sm space-y-4 rounded-xl border p-6" @submit.prevent="submit">
-    <h1 class="text-2xl font-bold">เข้าสู่ระบบ</h1>
-    <p v-if="error" class="rounded bg-red-50 p-2 text-sm text-red-700">{{ error }}</p>
-    <input v-model="form.username" required placeholder="Username" autocomplete="username" class="w-full rounded border px-3 py-2" />
-    <input v-model="form.password" required type="password" placeholder="Password" autocomplete="current-password" class="w-full rounded border px-3 py-2" />
-    <button :disabled="loading" class="w-full rounded bg-emerald-700 py-2 font-semibold text-white disabled:opacity-50">
-      {{ loading ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ' }}
-    </button>
-    <p class="text-center text-sm">ยังไม่มีบัญชี? <RouterLink to="/register" class="text-emerald-700 underline">สมัครสมาชิก</RouterLink></p>
-  </form>
-</template>
+<template><AuthPanel title="เข้าสู่ระบบ" subtitle="เข้าสู่บัญชีของคุณเพื่อดำเนินการต่อ"><form class="form-stack" @submit.prevent="submit"><p v-if="route.query.registered" class="success-box" role="status">สมัครสมาชิกสำเร็จ กรุณาเข้าสู่ระบบ</p><p v-if="error" class="error-box" role="alert">{{ error }}</p><label class="field-label" for="login-user">ชื่อผู้ใช้งาน</label><div class="input-icon"><Icon name="user" /><input id="login-user" v-model="form.username" required autocomplete="username" placeholder="ชื่อผู้ใช้งาน" /></div><PasswordInput id="login-password" v-model="form.password" label="รหัสผ่าน" autocomplete="current-password" /><div class="form-between"><label class="check-label"><input v-model="remember" type="checkbox" />จดจำฉัน</label><RouterLink to="/forgot-password" class="text-link">ลืมรหัสผ่าน?</RouterLink></div><button :disabled="loading" class="button button-primary">{{ loading ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ' }}<Icon name="arrow" /></button><p class="auth-bottom">ยังไม่มีบัญชี? <RouterLink to="/register" class="text-link">สมัครสมาชิก →</RouterLink></p></form></AuthPanel></template>

@@ -4,9 +4,6 @@ const { authenticate, requireRole } = require('../middleware/auth');
 
 const router = express.Router();
 
-// ทุก endpoint ต้อง login (6.6.3: Customer ต้องเป็นสมาชิกก่อนจึงดูสินค้าได้)
-router.use(authenticate);
-
 const IMAGE_RE = /^\w[\w.-]{0,254}\.(jpe?g|png|webp|gif)$/i; // เก็บเฉพาะชื่อไฟล์ กัน path เช่น ../../
 const MAX_PRICE = 99999999.99;                               // DECIMAL(10,2)
 const MAX_STOCK = 2147483647;                                // INT
@@ -71,11 +68,14 @@ async function getById(id) {
 }
 
 // ---------- GET /api/products?q=&category_id=&page=&limit= ----------
-// Admin และ Customer ใช้ร่วมกัน (ค้นหา 6.3 / แสดงสินค้า 6.4) แสดงสินค้า stock = 0 ด้วย เพื่อให้หน้าเว็บขึ้น "สินค้าหมด"
+// อ่านรายการสินค้าแบบสาธารณะ และแสดง stock = 0 ด้วยเพื่อให้ลูกค้าเห็นสถานะสินค้าหมด
 router.get('/', async (req, res) => {
   const q = String(req.query.q || '').trim().slice(0, 100);
   const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
   const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 12, 1), 100);
+  // SQL identifiers ไม่ใช้ค่าจาก client โดยตรง เลือกได้เฉพาะรายการเรียงลำดับที่อนุญาต
+  const sorting = { default: 'p.product_id', price_asc: 'p.price ASC, p.product_id', price_desc: 'p.price DESC, p.product_id', newest: 'p.product_id DESC' };
+  const orderBy = Object.hasOwn(sorting, String(req.query.sort)) ? sorting[String(req.query.sort)] : sorting.default;
 
   const where = [];
   const params = [];
@@ -104,7 +104,7 @@ router.get('/', async (req, res) => {
        FROM products p
        JOIN categories c ON c.category_id = p.category_id
        ${whereSql}
-      ORDER BY p.product_id
+      ORDER BY ${orderBy}
       LIMIT ? OFFSET ?`,
     [...params, limit, (page - 1) * limit]
   );
@@ -123,7 +123,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // ---------- POST /api/products (Admin) ----------
-router.post('/', requireRole('Admin'), async (req, res) => {
+router.post('/', authenticate, requireRole('Admin'), async (req, res) => {
   const { errors, value } = validateProduct(req.body);
   if (errors.length) return res.status(400).json({ message: 'ข้อมูลไม่ถูกต้อง', errors });
 
@@ -143,7 +143,7 @@ router.post('/', requireRole('Admin'), async (req, res) => {
 });
 
 // ---------- PUT /api/products/:id (Admin) แก้ไขทั้งรายการ ต้องส่งครบทุกช่อง ----------
-router.put('/:id', requireRole('Admin'), async (req, res) => {
+router.put('/:id', authenticate, requireRole('Admin'), async (req, res) => {
   const id = parseId(req.params.id);
   if (!id) return res.status(400).json({ message: 'รหัสสินค้าไม่ถูกต้อง' });
 
@@ -169,7 +169,7 @@ router.put('/:id', requireRole('Admin'), async (req, res) => {
 });
 
 // ---------- DELETE /api/products/:id (Admin) ----------
-router.delete('/:id', requireRole('Admin'), async (req, res) => {
+router.delete('/:id', authenticate, requireRole('Admin'), async (req, res) => {
   const id = parseId(req.params.id);
   if (!id) return res.status(400).json({ message: 'รหัสสินค้าไม่ถูกต้อง' });
 
