@@ -23,5 +23,4 @@ onMounted(async () => {
     <div v-else-if="products.length" class="product-grid"><ProductCard v-for="product in products" :key="product.product_id" :product="product" /></div>
     <p v-else class="empty-state">ยังไม่มีสินค้าในร้าน</p>
   </section>
-  <section class="benefit-band"><div class="page-shell benefit-section"><div><h2>ทำไมต้องเลือก<br />Probiotic Shop</h2><p>เลือกชมได้สะดวกในที่เดียว</p></div><article><Icon name="leaf" :size="36" /><div><h3>หลายรูปแบบ</h3><p>แคปซูล ผง เครื่องดื่ม และไฟเบอร์</p></div></article><article><Icon name="search" :size="36" /><div><h3>ค้นหาง่าย</h3><p>เลือกตามหมวดหมู่และคำค้นหา</p></div></article><article><Icon name="box" :size="36" /><div><h3>เช็กสินค้าคงเหลือ</h3><p>เห็นราคาและสถานะก่อนเลือก</p></div></article></div></section>
 </template>
