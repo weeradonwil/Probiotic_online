@@ -7,6 +7,9 @@ node_modules/
 # ไฟล์ที่ผู้ใช้อัปโหลด (สลิปโอนเงิน ซึ่งเป็นข้อมูลส่วนตัว)
 uploads/
 
+# ไฟล์ผลลัพธ์ build ของ frontend (Vite)
+dist/
+
 # ไฟล์ขยะ
 *.log
 .DS_Store

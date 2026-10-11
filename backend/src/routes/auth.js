@@ -116,4 +116,45 @@ router.get('/me', authenticate, async (req, res) => {
   res.json({ user: rows[0] });
 });
 
+router.put('/profile', authenticate, async (req, res) => {
+  const userId = req.user.user_id || req.user.id;
+  const { full_name, password } = req.body;
+
+  try {
+    if (!full_name || !full_name.trim()) {
+      return res.status(400).json({ message: 'กรุณากรอกชื่อ-นามสกุล' });
+    }
+
+    if (password && password.trim()) {
+      if (password.length < 6) {
+        return res.status(400).json({ message: 'รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร' });
+      }
+      const bcrypt = require('bcrypt');
+      const hash = await bcrypt.hash(password, 12);
+      await pool.query(
+        'UPDATE accounts SET full_name = ?, password = ? WHERE user_id = ?',
+        [full_name.trim(), hash, userId]
+      );
+    } else {
+      await pool.query(
+        'UPDATE accounts SET full_name = ? WHERE user_id = ?',
+        [full_name.trim(), userId]
+      );
+    }
+
+    const [users] = await pool.query(
+      'SELECT user_id, username, email, full_name, role FROM accounts WHERE user_id = ?',
+      [userId]
+    );
+
+    res.json({
+      message: 'อัปเดตข้อมูลโปรไฟล์เรียบร้อยแล้ว',
+      user: users[0]
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'เกิดข้อผิดพลาดในการอัปเดตโปรไฟล์', error: err.message });
+  }
+});
+
+
 module.exports = router;

@@ -1,7 +1,12 @@
 import { reactive } from 'vue'
+
 let saved = []
-try { saved = JSON.parse(localStorage.getItem('probiotic-cart') || '[]') } catch { /* ข้อมูลเก่าเสียหายให้เริ่มตะกร้าว่าง */ }
-// ตะกร้าเป็นรายการที่เลือกใน browser เท่านั้น ยังไม่ใช่ order และราคาไม่ใช่ยอดยืนยันจาก server
+try { 
+  saved = JSON.parse(localStorage.getItem('probiotic-cart') || '[]') 
+} catch { 
+  /* ข้อมูลเก่าเสียหายให้เริ่มตะกร้าว่าง */ 
+}
+
 export const cart = reactive({
   items: Array.isArray(saved) ? saved.filter(item => item?.product_id && Number.isInteger(item.quantity) && item.quantity > 0) : [],
   notice: '',
@@ -21,5 +26,12 @@ export const cart = reactive({
     if (item) item.quantity = Math.min(item.stock, Math.max(1, Math.floor(Number(value) || 1)))
     this.save()
   },
-  remove(id) { this.items = this.items.filter(item => item.product_id !== id); this.save() },
+  remove(id) { 
+    this.items = this.items.filter(item => item.product_id !== id)
+    this.save() 
+  },
+  clear() {
+    this.items = []
+    this.save()
+  }
 })
