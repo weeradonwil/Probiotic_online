@@ -34,6 +34,29 @@ const handleFileChange = (e) => {
   slipFile.value = e.target.files[0]
 }
 
+const cancelOrder = async (orderId) => {
+  if (!confirm(`คุณต้องการยกเลิกคำสั่งซื้อ #${orderId} ใช่หรือไม่? สต็อกสินค้าจะถูกคืนกลับเข้าระบบทันที`)) {
+    return
+  }
+
+  try {
+    const res = await fetch(`http://localhost:3000/api/orders/${orderId}/cancel`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${auth.token}`
+      }
+    })
+
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.message)
+
+    alert(data.message)
+    await fetchMyOrders()
+  } catch (err) {
+    alert(err.message || 'ไม่สามารถยกเลิกคำสั่งซื้อได้')
+  }
+}
+
 const submitPayment = async () => {
   if (!slipFile.value) {
     alert('กรุณาเลือกไฟล์สลิป')
@@ -97,11 +120,11 @@ onMounted(() => {
             <span 
               style="display: inline-block; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.875rem; font-weight: 600;"
               :style="{
-                background: order.status === 'Paid' ? '#dcfce7' : order.status === 'Shipped' ? '#dbeafe' : '#fef9c3',
-                color: order.status === 'Paid' ? '#166534' : order.status === 'Shipped' ? '#1e40af' : '#854d0e'
+                background: order.status === 'Paid' ? '#dcfce7' : order.status === 'Shipped' ? '#dbeafe' : order.status === 'cancelled' ? '#fee2e2' : '#fef9c3',
+                color: order.status === 'Paid' ? '#166534' : order.status === 'Shipped' ? '#1e40af' : order.status === 'cancelled' ? '#dc2626' : '#854d0e'
               }"
             >
-              สถานะ: {{ order.status }}
+              สถานะ: {{ order.status === 'cancelled' ? 'ยกเลิกแล้ว' : order.status }}
             </span>
           </div>
         </div>
@@ -114,7 +137,7 @@ onMounted(() => {
           </div>
         </div>
 
-        <div style="border-top: 1px dashed #e5e7eb; padding-top: 0.75rem; display: flex; justify-content: space-between; align-items: center;">
+        <div style="border-top: 1px dashed #e5e7eb; padding-top: 0.75rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
           <div>
             <p style="margin: 0; font-size: 0.875rem; color: #4b5563;">ที่อยู่จัดส่ง: {{ order.shipping_address }}</p>
             <p style="margin: 0.25rem 0 0 0; font-size: 0.875rem;">
@@ -124,18 +147,34 @@ onMounted(() => {
               </strong>
             </p>
           </div>
-          <div style="text-align: right;">
-            <div style="font-size: 1.125rem; font-weight: bold; margin-bottom: 0.5rem;">
+          <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 0.5rem;">
+            <div style="font-size: 1.125rem; font-weight: bold;">
               ยอดรวม: {{ money(order.total_amount) }}
             </div>
-            <button 
-              v-if="order.status === 'Pending' && !order.slip_image" 
-              class="button button-primary" 
-              style="font-size: 0.875rem; padding: 0.25rem 0.75rem;"
-              @click="payOrderId = order.order_id"
-            >
-              แนบสลิปโอนเงิน
-            </button>
+            
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+              <!-- ปุ่มยกเลิกคำสั่งซื้อ (แสดงเฉพาะตอนที่ยังเป็น Pending หรือยังไม่จัดส่ง) -->
+              <button 
+                v-if="order.status.toLowerCase() === 'pending'"
+                type="button"
+                style="background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; font-size: 0.85rem; padding: 0.35rem 0.75rem; border-radius: 6px; cursor: pointer; transition: background 0.2s;"
+                onmouseover="this.style.background='#fecaca'"
+                onmouseout="this.style.background='#fee2e2'"
+                @click="cancelOrder(order.order_id)"
+              >
+                ยกเลิกคำสั่งซื้อ
+              </button>
+
+              <!-- ปุ่มแนบสลิปโอนเงิน -->
+              <button 
+                v-if="order.status.toLowerCase() === 'pending' && !order.slip_image" 
+                class="button button-primary" 
+                style="font-size: 0.875rem; padding: 0.25rem 0.75rem;"
+                @click="payOrderId = order.order_id"
+              >
+                แนบสลิปโอนเงิน
+              </button>
+            </div>
           </div>
         </div>
       </article>

@@ -265,4 +265,75 @@ router.patch('/admin/:id/status', authenticate, requireRole('Admin'), async (req
   }
 });
 
+// PUT /api/orders/:id/cancel - ขอยกเลิกคำสั่งซื้อและคืนสต็อกสินค้าอัตโนมัติ
+router.put('/:id/cancel', authenticate, async (req, res) => {
+  const orderId = req.params.id;
+  const userId = req.user.user_id || req.user.id;
+  const isAdmin = req.user.role === 'Admin';
+
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    // 1. ตรวจสอบออเดอร์และสิทธิ์
+    const [orders] = await connection.query(
+      'SELECT order_id, user_id, status FROM orders WHERE order_id = ? FOR UPDATE',
+      [orderId]
+    );
+
+    if (!orders.length) {
+      await connection.rollback();
+      return res.status(404).json({ message: 'ไม่พบคำสั่งซื้อนี้' });
+    }
+
+    const order = orders[0];
+
+    // ถ้าไม่ใช่ Admin ต้องเป็นเจ้าของออเดอร์เท่านั้น
+    if (!isAdmin && order.user_id !== userId) {
+      await connection.rollback();
+      return res.status(403).json({ message: 'ไม่มีสิทธิ์ยกเลิกคำสั่งซื้อนี้' });
+    }
+
+    // ตรวจสอบว่าออเดอร์ถูกยกเลิกหรือจัดส่งไปแล้วหรือไม่
+    if (order.status === 'cancelled') {
+      await connection.rollback();
+      return res.status(400).json({ message: 'คำสั่งซื้อนี้ถูกยกเลิกไปแล้ว' });
+    }
+    if (order.status === 'shipped' || order.status === 'completed') {
+      await connection.rollback();
+      return res.status(400).json({ message: 'ไม่สามารถยกเลิกคำสั่งซื้อที่จัดส่งแล้วได้' });
+    }
+
+    // 2. ดึงรายการสินค้าทั้งหมดในออเดอร์นี้ เพื่อคืนสต็อก
+    const [items] = await connection.query(
+      'SELECT product_id, quantity FROM order_items WHERE order_id = ?',
+      [orderId]
+    );
+
+    // 3. วนลูปคืนสต็อกกลับเข้าตาราง products
+    for (const item of items) {
+      await connection.query(
+        'UPDATE products SET stock = stock + ? WHERE product_id = ?',
+        [item.quantity, item.product_id]
+      );
+    }
+
+    // 4. อัปเดตสถานะออเดอร์เป็น 'cancelled'
+    await connection.query(
+      'UPDATE orders SET status = ? WHERE order_id = ?',
+      ['cancelled', orderId]
+    );
+
+    await connection.commit();
+    res.json({ message: 'ยกเลิกคำสั่งซื้อและคืนสต็อกสินค้าเรียบร้อยแล้ว' });
+  } catch (err) {
+    await connection.rollback();
+    res.status(500).json({ message: 'เกิดข้อผิดพลาดในการยกเลิกคำสั่งซื้อ', error: err.message });
+  } finally {
+    connection.release();
+  }
+});
+
+
+
 module.exports = router;
