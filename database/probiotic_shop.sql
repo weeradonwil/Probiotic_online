@@ -5,13 +5,9 @@
 
 
 /* ---------------------------------------------------------------------
-   ขั้นที่ 1: สร้างฐานข้อมูล
-   !! DROP DATABASE ลบข้อมูลทั้งหมด (บัญชีผู้ใช้, ออเดอร์ ฯลฯ)
-      รันซ้ำแล้วต้องสร้าง Admin ใหม่ด้วย npm run create-admin
+   ขั้นที่ 1: เตรียมฐานข้อมูล
    --------------------------------------------------------------------- */
-DROP DATABASE IF EXISTS probiotic_shop;
-
-CREATE DATABASE probiotic_shop
+CREATE DATABASE IF NOT EXISTS probiotic_shop
   CHARACTER SET utf8mb4
   COLLATE utf8mb4_unicode_ci;
 
@@ -24,7 +20,7 @@ USE probiotic_shop;
    --------------------------------------------------------------------- */
 
 -- accounts: ผู้ใช้งาน (Admin / Customer)
-CREATE TABLE accounts (
+CREATE TABLE IF NOT EXISTS accounts (
   user_id             INT          NOT NULL AUTO_INCREMENT,
   username            VARCHAR(50)  NOT NULL,
   password            VARCHAR(255) NOT NULL,          -- bcrypt hash เท่านั้น ห้ามเก็บรหัสผ่านจริง
@@ -34,6 +30,7 @@ CREATE TABLE accounts (
   created_at          DATETIME     NULL DEFAULT CURRENT_TIMESTAMP,
   reset_token_hash    CHAR(64)     NULL,              -- เก็บ SHA-256 ของ token ไม่เก็บ token จริง (ถ้า DB รั่ว token ยังใช้ไม่ได้)
   reset_token_expires DATETIME     NULL,              -- ต้องตรวจเวลานี้ทุกครั้งก่อนยอมให้รีเซ็ตรหัสผ่าน
+  token_version       INT UNSIGNED NOT NULL DEFAULT 0, -- เพิ่มเมื่อเปลี่ยนรหัสผ่านเพื่อยกเลิก JWT เดิม
   PRIMARY KEY (user_id),
   UNIQUE KEY uq_accounts_username (username),
   UNIQUE KEY uq_accounts_email (email),
@@ -41,7 +38,7 @@ CREATE TABLE accounts (
 ) ENGINE=InnoDB;
 
 -- categories: หมวดหมู่สินค้า
-CREATE TABLE categories (
+CREATE TABLE IF NOT EXISTS categories (
   category_id INT          NOT NULL AUTO_INCREMENT,
   name        VARCHAR(100) NOT NULL,
   description TEXT         NULL,
@@ -49,7 +46,7 @@ CREATE TABLE categories (
 ) ENGINE=InnoDB;
 
 -- products: สินค้า (1 หมวดหมู่ มีได้หลายสินค้า)
-CREATE TABLE products (
+CREATE TABLE IF NOT EXISTS products (
   product_id  INT           NOT NULL AUTO_INCREMENT,
   category_id INT           NOT NULL,
   name        VARCHAR(150)  NOT NULL,
@@ -67,7 +64,7 @@ CREATE TABLE products (
 ) ENGINE=InnoDB;
 
 -- orders: คำสั่งซื้อ (1 ผู้ใช้ มีได้หลายคำสั่งซื้อ)
-CREATE TABLE orders (
+CREATE TABLE IF NOT EXISTS orders (
   order_id         INT           NOT NULL AUTO_INCREMENT,
   user_id          INT           NOT NULL,
   shipping_address TEXT          NOT NULL,
@@ -82,7 +79,7 @@ CREATE TABLE orders (
 ) ENGINE=InnoDB;
 
 -- order_items: รายการสินค้าในคำสั่งซื้อ
-CREATE TABLE order_items (
+CREATE TABLE IF NOT EXISTS order_items (
   order_item_id INT           NOT NULL AUTO_INCREMENT,
   order_id      INT           NOT NULL,
   product_id    INT           NOT NULL,
@@ -98,7 +95,7 @@ CREATE TABLE order_items (
 ) ENGINE=InnoDB;
 
 -- payments: การชำระเงิน
-CREATE TABLE payments (
+CREATE TABLE IF NOT EXISTS payments (
   payment_id     INT           NOT NULL AUTO_INCREMENT,
   order_id       INT           NOT NULL,
   payment_method VARCHAR(50)   NULL DEFAULT 'Bank Transfer',
@@ -120,26 +117,100 @@ CREATE TABLE payments (
    ขั้นที่ 3: ข้อมูลตัวอย่าง (ชื่อและราคาเป็นข้อมูลสมมติ)
    ไม่ใส่ Admin ที่นี่ เพราะรหัสผ่านต้อง hash ด้วย bcrypt ผ่าน Node.js ก่อน
    --------------------------------------------------------------------- */
-INSERT INTO categories (name, description) VALUES
-  ('โปรไบโอติกแบบแคปซูล',  'จุลินทรีย์ชนิดดีในรูปแบบแคปซูล ทานง่าย พกพาสะดวก'),
-  ('โปรไบโอติกแบบผง',      'ผงชงดื่ม ละลายง่าย เหมาะกับการทานทุกวัน'),
-  ('เครื่องดื่มโปรไบโอติก', 'โยเกิร์ตดริงค์ คอมบูชา และเครื่องดื่มหมักพร้อมดื่ม'),
-  ('พรีไบโอติกและไฟเบอร์', 'อาหารของจุลินทรีย์ดี ช่วยเสริมการทำงานของโปรไบโอติก');
+INSERT INTO categories (name, description)
+SELECT seed.name, seed.description
+FROM (
+  SELECT 'โปรไบโอติกแบบแคปซูล' AS name, 'จุลินทรีย์ชนิดดีในรูปแบบแคปซูล ทานง่าย พกพาสะดวก' AS description
+  UNION ALL SELECT 'โปรไบโอติกแบบผง' AS name, 'ผงชงดื่ม ละลายง่าย เหมาะกับการทานทุกวัน' AS description
+  UNION ALL SELECT 'เครื่องดื่มโปรไบโอติก' AS name, 'โยเกิร์ตดริงค์ คอมบูชา และเครื่องดื่มหมักพร้อมดื่ม' AS description
+  UNION ALL SELECT 'พรีไบโอติกและไฟเบอร์' AS name, 'อาหารของจุลินทรีย์ดี ช่วยเสริมการทำงานของโปรไบโอติก' AS description
+  UNION ALL SELECT 'โปรไบโอติกสำหรับเด็ก' AS name, 'ผลิตภัณฑ์โปรไบโอติกสูตรสำหรับเด็ก รสชาติทานง่าย' AS description
+  UNION ALL SELECT 'วิตามินและแร่ธาตุ' AS name, 'ผลิตภัณฑ์เสริมอาหารกลุ่มวิตามินและแร่ธาตุ' AS description
+  UNION ALL SELECT 'ดูแลผิวและช่องปาก' AS name, 'ผลิตภัณฑ์ดูแลผิวและช่องปากที่เกี่ยวข้องกับโปรไบโอติก' AS description
+) AS seed
+WHERE NOT EXISTS (SELECT 1 FROM categories existing WHERE existing.name = seed.name);
 
--- category_id: 1=แคปซูล, 2=ผง, 3=เครื่องดื่ม, 4=พรีไบโอติก
-INSERT INTO products (category_id, name, description, price, stock, image) VALUES
-  (1, 'Lactobacillus Plus 30 แคปซูล', 'โปรไบโอติก 10 พันล้าน CFU สำหรับสมดุลระบบทางเดินอาหาร', 590.00,  50, 'lactobacillus-plus.jpg'),
-  (1, 'Bifido Daily 60 แคปซูล',       'Bifidobacterium สำหรับการทานประจำวัน',                   890.00,  40, 'bifido-daily.jpg'),
-  (2, 'Probiotic Powder Mix 20 ซอง',  'ผงโปรไบโอติกรสผลไม้รวม ละลายน้ำเย็นได้',                 450.00,  60, 'powder-mix.jpg'),
-  (2, 'Kids Probiotic Powder 15 ซอง', 'สูตรสำหรับเด็ก รสสตรอว์เบอร์รี',                         390.00,  35, 'kids-powder.jpg'),
-  (3, 'Yogurt Drink Original 6 ขวด',  'โยเกิร์ตดริงค์รสธรรมชาติ น้ำตาลต่ำ',                     180.00, 100, 'yogurt-original.jpg'),
-  (3, 'Kombucha Ginger 330ml',        'คอมบูชารสขิง หมักธรรมชาติ',                               85.00,  80, 'kombucha-ginger.jpg'),
-  (4, 'Inulin Prebiotic Fiber 200g',  'ไฟเบอร์พรีไบโอติกจากรากชิโครี',                          320.00,  45, 'inulin-fiber.jpg'),
-  (4, 'Psyllium Husk 250g',           'เปลือกเมล็ดไซเลียม ช่วยการขับถ่าย',                      280.00,   0, 'psyllium-husk.jpg');  -- stock = 0 ไว้ทดสอบกรณีสินค้าหมด
+-- ผูกสินค้าเริ่มต้นกับหมวดหมู่ด้วยชื่อ เพื่อไม่สมมติว่า category_id ต้องเริ่มจาก 1
+INSERT INTO products (category_id, name, description, price, stock, image)
+SELECT category.category_id, seed.name, seed.description, seed.price, seed.stock, seed.image
+FROM (
+  SELECT 'โปรไบโอติกแบบแคปซูล' AS category_name, 'Lactobacillus Plus 30 แคปซูล' AS name, 'โปรไบโอติก 10 พันล้าน CFU สำหรับสมดุลระบบทางเดินอาหาร' AS description, 590.00 AS price, 50 AS stock, 'lactobacillus-plus.jpg' AS image
+  UNION ALL SELECT 'โปรไบโอติกแบบแคปซูล', 'Bifido Daily 60 แคปซูล', 'Bifidobacterium สำหรับการทานประจำวัน', 890.00, 40, 'bifido-daily.jpg'
+  UNION ALL SELECT 'โปรไบโอติกแบบผง', 'Probiotic Powder Mix 20 ซอง', 'ผงโปรไบโอติกรสผลไม้รวม ละลายน้ำเย็นได้', 450.00, 60, 'powder-mix.jpg'
+  UNION ALL SELECT 'โปรไบโอติกแบบผง', 'Kids Probiotic Powder 15 ซอง', 'สูตรสำหรับเด็ก รสสตรอว์เบอร์รี', 390.00, 35, 'kids-powder.jpg'
+  UNION ALL SELECT 'เครื่องดื่มโปรไบโอติก', 'Yogurt Drink Original 6 ขวด', 'โยเกิร์ตดริงค์รสธรรมชาติ น้ำตาลต่ำ', 180.00, 100, 'yogurt-original.jpg'
+  UNION ALL SELECT 'เครื่องดื่มโปรไบโอติก', 'Kombucha Ginger 330ml', 'คอมบูชารสขิง หมักธรรมชาติ', 85.00, 80, 'kombucha-ginger.jpg'
+  UNION ALL SELECT 'พรีไบโอติกและไฟเบอร์', 'Inulin Prebiotic Fiber 200g', 'ไฟเบอร์พรีไบโอติกจากรากชิโครี', 320.00, 45, 'inulin-fiber.jpg'
+  UNION ALL SELECT 'พรีไบโอติกและไฟเบอร์', 'Psyllium Husk 250g', 'เปลือกเมล็ดไซเลียม ช่วยการขับถ่าย', 280.00, 0, 'psyllium-husk.jpg'
+  UNION ALL SELECT 'โปรไบโอติกแบบแคปซูล', 'Lactobacillus Rhamnosus 30 แคปซูล', 'โปรไบโอติกสายพันธุ์ Lactobacillus rhamnosus ชนิดแคปซูล', 650.00, 45, 'lactobacillus-rhamnosus.jpg'
+  UNION ALL SELECT 'โปรไบโอติกแบบแคปซูล', 'Saccharomyces Boulardii 30 แคปซูล', 'โปรไบโอติกชนิดยีสต์ ทานง่าย พกพาสะดวก', 720.00, 40, 'saccharomyces-boulardii.jpg'
+  UNION ALL SELECT 'โปรไบโอติกแบบแคปซูล', 'Probiotic 50 Billion 30 แคปซูล', 'โปรไบโอติกความเข้มข้นสูง 50 พันล้าน CFU', 990.00, 35, 'probiotic-50-billion.jpg'
+  UNION ALL SELECT 'โปรไบโอติกแบบแคปซูล', 'Probiotic Women''s Care 30 แคปซูล', 'โปรไบโอติกสูตรสำหรับผู้หญิง', 780.00, 40, 'probiotic-womens-care.jpg'
+  UNION ALL SELECT 'โปรไบโอติกแบบแคปซูล', 'Probiotic Men''s Care 30 แคปซูล', 'โปรไบโอติกสูตรสำหรับผู้ชาย', 780.00, 40, 'probiotic-mens-care.jpg'
+  UNION ALL SELECT 'โปรไบโอติกแบบแคปซูล', 'Bifidobacterium Lactis 60 แคปซูล', 'โปรไบโอติกบิฟิโดแบคทีเรียม แลคติส สำหรับทานประจำวัน', 850.00, 30, 'bifidobacterium-lactis.jpg'
+  UNION ALL SELECT 'โปรไบโอติกแบบแคปซูล', 'Probiotic Immune Support 30 แคปซูล', 'โปรไบโอติกผสมวิตามินซีและซิงค์', 690.00, 50, 'probiotic-immune-support.jpg'
+  UNION ALL SELECT 'โปรไบโอติกแบบแคปซูล', 'Synbiotic Capsule 30 แคปซูล', 'ซินไบโอติก โปรไบโอติกผสมพรีไบโอติก', 820.00, 35, 'synbiotic-capsule.jpg'
+  UNION ALL SELECT 'โปรไบโอติกแบบผง', 'Probiotic Powder Peach 20 ซอง', 'ผงโปรไบโอติกรสพีช ละลายน้ำเย็นได้', 450.00, 60, 'powder-peach.jpg'
+  UNION ALL SELECT 'โปรไบโอติกแบบผง', 'Probiotic Powder Lemon 20 ซอง', 'ผงโปรไบโอติกรสเลมอน', 450.00, 60, 'powder-lemon.jpg'
+  UNION ALL SELECT 'โปรไบโอติกแบบผง', 'Probiotic Powder Plain 30 ซอง', 'ผงโปรไบโอติกไม่แต่งรส ผสมกับอาหารหรือเครื่องดื่มได้', 590.00, 50, 'powder-plain.jpg'
+  UNION ALL SELECT 'โปรไบโอติกแบบผง', 'Probiotic Powder Green Tea 20 ซอง', 'ผงโปรไบโอติกรสชาเขียว', 470.00, 50, 'powder-green-tea.jpg'
+  UNION ALL SELECT 'โปรไบโอติกแบบผง', 'Probiotic Powder Mixed Berry 20 ซอง', 'ผงโปรไบโอติกรสมิกซ์เบอร์รี', 470.00, 55, 'powder-mixed-berry.jpg'
+  UNION ALL SELECT 'โปรไบโอติกแบบผง', 'Probiotic Powder Travel Pack 10 ซอง', 'ผงโปรไบโอติกขนาดพกพา สำหรับเดินทาง', 260.00, 70, 'powder-travel-pack.jpg'
+  UNION ALL SELECT 'โปรไบโอติกแบบผง', 'Probiotic Powder Mango 20 ซอง', 'ผงโปรไบโอติกรสมะม่วง', 450.00, 60, 'powder-mango.jpg'
+  UNION ALL SELECT 'โปรไบโอติกแบบผง', 'Probiotic Powder Sugar-Free 30 ซอง', 'ผงโปรไบโอติกสูตรไม่เติมน้ำตาล', 620.00, 45, 'powder-sugar-free.jpg'
+  UNION ALL SELECT 'เครื่องดื่มโปรไบโอติก', 'Yogurt Drink Strawberry 6 ขวด', 'โยเกิร์ตดื่มรสสตรอว์เบอร์รี', 190.00, 90, 'yogurt-strawberry.jpg'
+  UNION ALL SELECT 'เครื่องดื่มโปรไบโอติก', 'Yogurt Drink Blueberry 6 ขวด', 'โยเกิร์ตดื่มรสบลูเบอร์รี', 190.00, 90, 'yogurt-blueberry.jpg'
+  UNION ALL SELECT 'เครื่องดื่มโปรไบโอติก', 'Kombucha Lemon 330ml', 'คอมบูชารสเลมอน หมักธรรมชาติ', 85.00, 80, 'kombucha-lemon.jpg'
+  UNION ALL SELECT 'เครื่องดื่มโปรไบโอติก', 'Kombucha Original 330ml', 'คอมบูชารสออริจินัล หมักธรรมชาติ', 85.00, 80, 'kombucha-original.jpg'
+  UNION ALL SELECT 'เครื่องดื่มโปรไบโอติก', 'Kefir Original 250ml', 'เคเฟอร์นมหมัก รสธรรมชาติ', 79.00, 50, 'kefir-original.jpg'
+  UNION ALL SELECT 'เครื่องดื่มโปรไบโอติก', 'Greek Yogurt Plain 150g', 'กรีกโยเกิร์ตข้น ไม่เติมน้ำตาล', 55.00, 90, 'greek-yogurt-plain.jpg'
+  UNION ALL SELECT 'เครื่องดื่มโปรไบโอติก', 'Green Tea Kombucha 330ml', 'คอมบูชารสชาเขียว', 89.00, 70, 'kombucha-green-tea.jpg'
+  UNION ALL SELECT 'เครื่องดื่มโปรไบโอติก', 'Fermented Fruit Drink 250ml', 'น้ำผลไม้หมักผสมจุลินทรีย์', 65.00, 70, 'fermented-fruit-drink.jpg'
+  UNION ALL SELECT 'พรีไบโอติกและไฟเบอร์', 'FOS Prebiotic Powder 200g', 'พรีไบโอติกชนิดผง ฟรุคโตโอลิโกแซ็กคาไรด์', 340.00, 50, 'fos-prebiotic-powder.jpg'
+  UNION ALL SELECT 'พรีไบโอติกและไฟเบอร์', 'Chicory Root Fiber 250g', 'ไฟเบอร์จากรากชิโครี', 360.00, 45, 'chicory-root-fiber.jpg'
+  UNION ALL SELECT 'พรีไบโอติกและไฟเบอร์', 'Oat Beta-Glucan 200g', 'ไฟเบอร์เบต้ากลูแคนจากข้าวโอ๊ต', 380.00, 40, 'oat-beta-glucan.jpg'
+  UNION ALL SELECT 'พรีไบโอติกและไฟเบอร์', 'Acacia Fiber 250g', 'ไฟเบอร์จากกัมอะคาเซีย ละลายน้ำได้ดี', 390.00, 40, 'acacia-fiber.jpg'
+  UNION ALL SELECT 'พรีไบโอติกและไฟเบอร์', 'Psyllium Husk Capsule 90 แคปซูล', 'เปลือกเมล็ดไซเลียมชนิดแคปซูล', 310.00, 60, 'psyllium-husk-capsule.jpg'
+  UNION ALL SELECT 'พรีไบโอติกและไฟเบอร์', 'Prebiotic Fiber Gummy 30 เม็ด', 'กัมมี่ไฟเบอร์พรีไบโอติก', 330.00, 55, 'prebiotic-fiber-gummy.jpg'
+  UNION ALL SELECT 'พรีไบโอติกและไฟเบอร์', 'Mixed Fiber Sachet 20 ซอง', 'ไฟเบอร์รวมชนิดซอง ชงดื่มง่าย', 420.00, 50, 'mixed-fiber-sachet.jpg'
+  UNION ALL SELECT 'พรีไบโอติกและไฟเบอร์', 'Apple Pectin Fiber 200g', 'ไฟเบอร์เพคตินจากแอปเปิล', 350.00, 45, 'apple-pectin-fiber.jpg'
+  UNION ALL SELECT 'โปรไบโอติกสำหรับเด็ก', 'Kids Probiotic Drops 10ml', 'โปรไบโอติกชนิดหยด สำหรับเด็กเล็ก', 390.00, 40, 'kids-probiotic-drops.jpg'
+  UNION ALL SELECT 'โปรไบโอติกสำหรับเด็ก', 'Toddler Probiotic Drops 8ml', 'โปรไบโอติกชนิดหยด สูตรสำหรับวัยหัดเดิน', 350.00, 40, 'toddler-probiotic-drops.jpg'
+  UNION ALL SELECT 'โปรไบโอติกสำหรับเด็ก', 'Kids Chewable Strawberry 30 เม็ด', 'เม็ดเคี้ยว รสสตรอว์เบอร์รี', 320.00, 60, 'kids-chewable-strawberry.jpg'
+  UNION ALL SELECT 'โปรไบโอติกสำหรับเด็ก', 'Kids Chewable Orange 30 เม็ด', 'เม็ดเคี้ยว รสส้ม', 320.00, 60, 'kids-chewable-orange.jpg'
+  UNION ALL SELECT 'โปรไบโอติกสำหรับเด็ก', 'Kids Probiotic Powder Banana 15 ซอง', 'ผงชงดื่ม รสกล้วย', 380.00, 50, 'kids-powder-banana.jpg'
+  UNION ALL SELECT 'โปรไบโอติกสำหรับเด็ก', 'Kids Probiotic Powder Vanilla 15 ซอง', 'ผงชงดื่ม รสวนิลา', 380.00, 50, 'kids-powder-vanilla.jpg'
+  UNION ALL SELECT 'โปรไบโอติกสำหรับเด็ก', 'Kids Probiotic Gummy Berry 30 เม็ด', 'กัมมี่ รสเบอร์รี', 350.00, 55, 'kids-gummy-berry.jpg'
+  UNION ALL SELECT 'โปรไบโอติกสำหรับเด็ก', 'Kids Prebiotic Fiber Gummy 30 เม็ด', 'กัมมี่ไฟเบอร์พรีไบโอติก สำหรับเด็ก', 330.00, 45, 'kids-fiber-gummy.jpg'
+  UNION ALL SELECT 'โปรไบโอติกสำหรับเด็ก', 'Kids Yogurt Drink Plain 6 ขวด', 'โยเกิร์ตดื่มสำหรับเด็ก รสธรรมชาติ', 150.00, 80, 'kids-yogurt-plain.jpg'
+  UNION ALL SELECT 'โปรไบโอติกสำหรับเด็ก', 'Kids Probiotic Sachet Apple 20 ซอง', 'ผงโปรไบโอติก รสแอปเปิล', 420.00, 35, 'kids-sachet-apple.jpg'
+  UNION ALL SELECT 'วิตามินและแร่ธาตุ', 'Vitamin C 500mg 60 เม็ด', 'ผลิตภัณฑ์เสริมอาหารวิตามินซี', 189.00, 100, 'vitamin-c-500.jpg'
+  UNION ALL SELECT 'วิตามินและแร่ธาตุ', 'Vitamin D3 1000 IU 60 แคปซูล', 'ผลิตภัณฑ์เสริมอาหารวิตามินดี 3', 259.00, 80, 'vitamin-d3.jpg'
+  UNION ALL SELECT 'วิตามินและแร่ธาตุ', 'Zinc 15mg 60 เม็ด', 'ผลิตภัณฑ์เสริมอาหารซิงค์', 169.00, 90, 'zinc-15.jpg'
+  UNION ALL SELECT 'วิตามินและแร่ธาตุ', 'Magnesium 200mg 60 เม็ด', 'ผลิตภัณฑ์เสริมอาหารแมกนีเซียม', 229.00, 80, 'magnesium-200.jpg'
+  UNION ALL SELECT 'วิตามินและแร่ธาตุ', 'Vitamin B Complex 60 เม็ด', 'ผลิตภัณฑ์เสริมอาหารวิตามินบีรวม', 199.00, 90, 'vitamin-b-complex.jpg'
+  UNION ALL SELECT 'วิตามินและแร่ธาตุ', 'Calcium + D 60 เม็ด', 'ผลิตภัณฑ์เสริมอาหารแคลเซียมผสมวิตามินดี', 249.00, 70, 'calcium-d.jpg'
+  UNION ALL SELECT 'วิตามินและแร่ธาตุ', 'Omega-3 Fish Oil 60 แคปซูล', 'ผลิตภัณฑ์เสริมอาหารน้ำมันปลา', 329.00, 60, 'omega-3.jpg'
+  UNION ALL SELECT 'วิตามินและแร่ธาตุ', 'Multivitamin Adult 60 เม็ด', 'วิตามินและแร่ธาตุรวม สำหรับผู้ใหญ่', 289.00, 80, 'multivitamin-adult.jpg'
+  UNION ALL SELECT 'วิตามินและแร่ธาตุ', 'Iron + Vitamin C 30 เม็ด', 'ผลิตภัณฑ์เสริมอาหารธาตุเหล็กผสมวิตามินซี', 179.00, 70, 'iron-vitamin-c.jpg'
+  UNION ALL SELECT 'วิตามินและแร่ธาตุ', 'Vitamin E 400 IU 30 แคปซูล', 'ผลิตภัณฑ์เสริมอาหารวิตามินอี', 219.00, 60, 'vitamin-e-400.jpg'
+  UNION ALL SELECT 'ดูแลผิวและช่องปาก', 'Prebiotic Serum 30ml', 'เซรั่มบำรุงผิวสูตรอ่อนโยน', 459.00, 60, 'prebiotic-serum.jpg'
+  UNION ALL SELECT 'ดูแลผิวและช่องปาก', 'Probiotic Face Cream 50g', 'ครีมบำรุงผิวหน้า เนื้อบางเบา', 389.00, 60, 'face-cream.jpg'
+  UNION ALL SELECT 'ดูแลผิวและช่องปาก', 'Gentle Foam Cleanser 100ml', 'โฟมล้างหน้าสูตรอ่อนโยน ไม่มีน้ำหอม', 199.00, 90, 'foam-cleanser.jpg'
+  UNION ALL SELECT 'ดูแลผิวและช่องปาก', 'Balancing Toner 150ml', 'โทนเนอร์สูตรน้ำ ไม่มีแอลกอฮอล์', 259.00, 70, 'balancing-toner.jpg'
+  UNION ALL SELECT 'ดูแลผิวและช่องปาก', 'Sunscreen SPF50 PA+++ 40ml', 'ครีมกันแดดเนื้อบางเบา', 329.00, 80, 'sunscreen-spf50.jpg'
+  UNION ALL SELECT 'ดูแลผิวและช่องปาก', 'Body Lotion 250ml', 'โลชั่นบำรุงผิวกาย', 229.00, 80, 'body-lotion.jpg'
+  UNION ALL SELECT 'ดูแลผิวและช่องปาก', 'Gentle Body Wash 400ml', 'ครีมอาบน้ำสูตรอ่อนโยน สำหรับผิวบอบบาง', 179.00, 90, 'body-wash.jpg'
+  UNION ALL SELECT 'ดูแลผิวและช่องปาก', 'Probiotic Toothpaste 100g', 'ยาสีฟันสูตรอ่อนโยน', 149.00, 100, 'toothpaste.jpg'
+  UNION ALL SELECT 'ดูแลผิวและช่องปาก', 'Alcohol-Free Mouthwash 250ml', 'น้ำยาบ้วนปากสูตรอ่อนโยน ไม่มีแอลกอฮอล์', 159.00, 90, 'mouthwash.jpg'
+  UNION ALL SELECT 'ดูแลผิวและช่องปาก', 'Oral Probiotic Lozenges 30 เม็ด', 'เม็ดอมโปรไบโอติก รสมินต์', 129.00, 100, 'oral-lozenges.jpg'
+) AS seed
+JOIN categories AS category ON category.name = seed.category_name
+WHERE NOT EXISTS (SELECT 1 FROM products existing WHERE existing.category_id = category.category_id AND existing.name = seed.name); -- เติมเฉพาะสินค้าที่ยังไม่มี ไม่เขียนทับ stock หรือราคาเดิม
 
 
 /* ---------------------------------------------------------------------
-   ขั้นที่ 4: ตรวจผล (ควรได้ 6 ตาราง, categories = 4, products = 8)
+   ขั้นที่ 4: ตรวจผล (ควรได้ 6 ตาราง, categories = 7, products = 70)
    --------------------------------------------------------------------- */
 SHOW TABLES;
 
