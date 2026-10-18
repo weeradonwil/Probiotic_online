@@ -68,12 +68,10 @@ async function getById(id) {
 }
 
 // ---------- GET /api/products?q=&category_id=&page=&limit= ----------
-// อ่านรายการสินค้าแบบสาธารณะ และแสดง stock = 0 ด้วยเพื่อให้ลูกค้าเห็นสถานะสินค้าหมด
 router.get('/', async (req, res) => {
   const q = String(req.query.q || '').trim().slice(0, 100);
   const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
   const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 12, 1), 100);
-  // SQL identifiers ไม่ใช้ค่าจาก client โดยตรง เลือกได้เฉพาะรายการเรียงลำดับที่อนุญาต
   const sorting = { default: 'p.product_id', price_asc: 'p.price ASC, p.product_id', price_desc: 'p.price DESC, p.product_id', newest: 'p.product_id DESC' };
   const orderBy = Object.hasOwn(sorting, String(req.query.sort)) ? sorting[String(req.query.sort)] : sorting.default;
 
@@ -87,7 +85,6 @@ router.get('/', async (req, res) => {
     params.push(categoryId);
   }
   if (q) {
-    // escape % _ \ เพื่อให้ค้นหาเป็นข้อความตรงตัว ไม่ใช่ wildcard
     const like = `%${q.replace(/[\\%_]/g, '\\$&')}%`;
     where.push('(p.name LIKE ? OR p.description LIKE ?)');
     params.push(like, like);
@@ -110,6 +107,57 @@ router.get('/', async (req, res) => {
   );
 
   res.json({ data: rows, total, page, limit });
+});
+
+// ---------- GET /api/products/:id/reviews - ดึงรีวิวจริงของสินค้านั้นๆ ----------
+router.get('/:id/reviews', async (req, res) => {
+  const id = parseId(req.params.id);
+  if (!id) return res.status(400).json({ message: 'รหัสสินค้าไม่ถูกต้อง' });
+
+  try {
+    const [reviews] = await pool.query(
+      `SELECT r.review_id, r.rating, r.comment, r.created_at,
+              COALESCE(a.full_name, a.username) AS username
+       FROM reviews r
+       JOIN accounts a ON r.user_id = a.user_id
+       WHERE r.product_id = ?
+       ORDER BY r.created_at DESC`,
+      [id]
+    );
+    res.json(reviews);
+  } catch (err) {
+    res.status(500).json({ message: 'ดึงข้อมูลรีวิวไม่สำเร็จ', error: err.message });
+  }
+});
+
+// ---------- POST /api/products/:id/reviews - สมาชิกส่งรีวิวจริง ----------
+router.post('/:id/reviews', authenticate, async (req, res) => {
+  const productId = parseId(req.params.id);
+  if (!productId) return res.status(400).json({ message: 'รหัสสินค้าไม่ถูกต้อง' });
+
+  const userId = req.user.user_id || req.user.id;
+  const { rating, comment, order_id } = req.body;
+
+  const score = parseInt(rating, 10);
+  if (!score || score < 1 || score > 5) {
+    return res.status(400).json({ message: 'คะแนนรีวิวต้องอยู่ระหว่าง 1-5 ดาว' });
+  }
+
+  const commentText = String(comment ?? '').trim();
+  if (!commentText) {
+    return res.status(400).json({ message: 'กรุณากรอกข้อความรีวิว' });
+  }
+
+  try {
+    await pool.query(
+      `INSERT INTO reviews (product_id, user_id, order_id, rating, comment)
+       VALUES (?, ?, ?, ?, ?)`,
+      [productId, userId, order_id ? parseId(order_id) : null, score, commentText]
+    );
+    res.status(201).json({ message: 'บันทึกรีวิวของคุณเรียบร้อยแล้ว' });
+  } catch (err) {
+    res.status(500).json({ message: 'บันทึกรีวิวไม่สำเร็จ', error: err.message });
+  }
 });
 
 // ---------- GET /api/products/:id ----------
@@ -142,7 +190,7 @@ router.post('/', authenticate, requireRole('Admin'), async (req, res) => {
   }
 });
 
-// ---------- PUT /api/products/:id (Admin) แก้ไขทั้งรายการ ต้องส่งครบทุกช่อง ----------
+// ---------- PUT /api/products/:id (Admin) ----------
 router.put('/:id', authenticate, requireRole('Admin'), async (req, res) => {
   const id = parseId(req.params.id);
   if (!id) return res.status(400).json({ message: 'รหัสสินค้าไม่ถูกต้อง' });
@@ -178,7 +226,6 @@ router.delete('/:id', authenticate, requireRole('Admin'), async (req, res) => {
     if (result.affectedRows === 0) return res.status(404).json({ message: 'ไม่พบสินค้า' });
     res.json({ message: 'ลบสินค้าสำเร็จ' });
   } catch (err) {
-    // สินค้าที่เคยถูกสั่งซื้อแล้วลบไม่ได้ (FK จาก order_items) เพื่อรักษาประวัติและใบเสร็จ
     if (err.code === 'ER_ROW_IS_REFERENCED_2') {
       return res.status(409).json({
         message: 'ลบไม่ได้ เพราะสินค้านี้เคยถูกสั่งซื้อแล้ว แนะนำให้แก้ไข stock เป็น 0 แทน',

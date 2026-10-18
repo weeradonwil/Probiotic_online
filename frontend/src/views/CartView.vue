@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import PageBanner from '../components/PageBanner.vue'
 import ProductImage from '../components/ProductImage.vue'
@@ -7,7 +7,6 @@ import Icon from '../components/Icon.vue'
 import { cart } from '../cart'
 import { auth } from '../auth'
 import { money } from '../format'
-import { api } from '../api'
 
 const router = useRouter()
 const shippingAddress = ref('')
@@ -20,6 +19,14 @@ const slipFile = ref(null)
 const phoneNumber = ref('')
 const isUploadingSlip = ref(false)
 const paySuccess = ref(false)
+
+// Saved Address: ดึงที่อยู่จัดส่งล่าสุดที่บันทึกไว้ในเครื่อง
+onMounted(() => {
+  const saved = localStorage.getItem('last_shipping_address')
+  if (saved) {
+    shippingAddress.value = saved
+  }
+})
 
 const handleFileChange = (e) => {
   const file = e.target.files[0]
@@ -49,7 +56,6 @@ const checkout = async () => {
       }))
     }
 
-    // เรียก API ตรงด้วย fetch พร้อมส่ง Header Authorization และ Content-Type ที่ถูกต้อง
     const res = await fetch('http://localhost:3000/api/orders', {
       method: 'POST',
       headers: {
@@ -64,6 +70,9 @@ const checkout = async () => {
     if (!res.ok) {
       throw new Error(data.message || 'เกิดข้อผิดพลาดในการสั่งซื้อ')
     }
+
+    // จดจำที่อยู่จัดส่งล่าสุดสำหรับครั้งต่อไป
+    localStorage.setItem('last_shipping_address', shippingAddress.value.trim())
 
     createdOrder.value = data
     cart.clear()
@@ -188,12 +197,17 @@ const submitPayment = async () => {
         <div><span>ยอดรวม</span><strong>{{ money(cart.total) }}</strong></div>
 
         <div style="margin-top: 1rem;">
-          <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">ที่อยู่จัดส่งสินค้า *</label>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+            <label style="font-weight: 600; font-size: 0.95rem;">ที่อยู่จัดส่งสินค้า *</label>
+            <span v-if="shippingAddress" style="font-size: 0.75rem; color: #166534; background: #dcfce7; padding: 2px 6px; border-radius: 4px;">
+              ✓ ใช้ที่อยู่ล่าสุด
+            </span>
+          </div>
           <textarea
             v-model="shippingAddress"
             rows="3"
             placeholder="กรอกชื่อ-นามสกุล ที่อยู่ และเบอร์โทรศัพท์สำหรับจัดส่ง..."
-            style="width: 100%; padding: 0.5rem; border-radius: 6px; border: 1px solid #d1d5db; resize: vertical;"
+            style="width: 100%; padding: 0.5rem; border-radius: 6px; border: 1px solid #d1d5db; resize: vertical; font-family: inherit;"
           ></textarea>
         </div>
 
