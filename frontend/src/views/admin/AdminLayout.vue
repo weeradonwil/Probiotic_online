@@ -22,12 +22,12 @@ watch(() => route.path, () => { open.value = false })
       <Brand admin />
       <nav aria-label="เมนูผู้ดูแล">
         <RouterLink v-for="item in links" :key="item.to" :to="item.to" exact-active-class="active">
-          <Icon :name="item.icon" />{{ item.label }}
+          <Icon :name="item.icon" /><span class="admin-nav-label">{{ item.label }}</span>
         </RouterLink>
       </nav>
       <div class="admin-sidebar-bottom">
-        <RouterLink to="/"><Icon name="leaf" />กลับหน้าร้าน</RouterLink>
-        <button @click="auth.logout()"><Icon name="logout" />ออกจากระบบ</button>
+        <RouterLink to="/"><Icon name="leaf" /><span class="admin-nav-label">กลับหน้าร้าน</span></RouterLink>
+        <button @click="auth.logout()"><Icon name="logout" /><span class="admin-nav-label">ออกจากระบบ</span></button>
       </div>
     </aside>
     <div class="admin-main">
