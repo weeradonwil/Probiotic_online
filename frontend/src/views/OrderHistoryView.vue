@@ -15,6 +15,11 @@ const slipFile = ref(null)
 const phoneNumber = ref('')
 const isUploading = ref(false)
 
+// State สำหรับ Modal ยืนยันยกเลิกคำสั่งซื้อแบบสวยงาม
+const cancelModalOpen = ref(false)
+const orderToCancel = ref(null)
+const isCancelling = ref(false)
+
 // State สำหรับพิมพ์และโหลด PDF ใบเสร็จ
 const receiptModalOpen = ref(false)
 const currentReceiptOrder = ref(null)
@@ -42,13 +47,19 @@ const handleFileChange = (e) => {
   slipFile.value = e.target.files[0]
 }
 
-const cancelOrder = async (orderId) => {
-  if (!confirm(`คุณต้องการยกเลิกคำสั่งซื้อ #${orderId} ใช่หรือไม่? สต็อกสินค้าจะถูกคืนกลับเข้าระบบทันที`)) {
-    return
-  }
+// 1. ฟังก์ชันเปิด Modal สวยๆ เวลากดปุ่มยกเลิกคำสั่งซื้อ
+const promptCancelOrder = (order) => {
+  orderToCancel.value = order
+  cancelModalOpen.value = true
+}
 
+// 2. ฟังก์ชันยิง API ขอยกเลิกคำสั่งซื้อจริงเมื่อกดยืนยันใน Modal
+const confirmCancelOrder = async () => {
+  if (!orderToCancel.value) return
+
+  isCancelling.value = true
   try {
-    const res = await fetch(`http://localhost:3000/api/orders/${orderId}/cancel`, {
+    const res = await fetch(`http://localhost:3000/api/orders/${orderToCancel.value.order_id}/cancel`, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${auth.token}`
@@ -58,10 +69,13 @@ const cancelOrder = async (orderId) => {
     const data = await res.json()
     if (!res.ok) throw new Error(data.message)
 
-    alert(data.message)
+    cancelModalOpen.value = false
+    orderToCancel.value = null
     await fetchMyOrders()
   } catch (err) {
     alert(err.message || 'ไม่สามารถยกเลิกคำสั่งซื้อได้')
+  } finally {
+    isCancelling.value = false
   }
 }
 
@@ -158,12 +172,17 @@ const downloadPDF = async () => {
   }
 }
 
+// ฟังก์ชันหาตำแหน่งรูปภาพสินค้าให้ถูกต้องตามโครงสร้างโฟลเดอร์
 const getProductImage = (item) => {
-  if (item.product_image) {
-    if (item.product_image.startsWith('http')) return item.product_image
-    return item.product_image.startsWith('/') ? item.product_image : '/' + item.product_image
+  const img = item.product_image || item.image || ''
+  
+  if (img) {
+    if (img.startsWith('http://') || img.startsWith('https://')) return img
+    if (img.startsWith('/')) return img
+    return `/images/products/${img}`
   }
-  return `/images/products/${item.product_id}.png`
+
+  return `/images/products/${item.product_id}.jpg`
 }
 
 onMounted(() => {
@@ -219,7 +238,7 @@ onMounted(() => {
                   :src="getProductImage(item)" 
                   :alt="item.product_name"
                   style="width: 54px; height: 54px; object-fit: contain; border-radius: 6px; border: 1px solid #e5e7eb; background: #fff; flex-shrink: 0; padding: 2px;"
-                  @error="$event.target.src = 'https://placehold.co/100x100?text=Probiotic'"
+                  @error="$event.target.src = '/images/' + (item.product_image || item.product_id + '.jpg')"
                 />
                 <div>
                   <strong style="color: #1f2937; font-size: 0.95rem; display: block;">{{ item.product_name }}</strong>
@@ -258,12 +277,12 @@ onMounted(() => {
                 🖨️ พิมพ์ใบเสร็จ
               </button>
 
-              <!-- ปุ่มยกเลิกคำสั่งซื้อ -->
+              <!-- ปุ่มยกเลิกคำสั่งซื้อ (เปลี่ยนมาเปิด Modal สวยๆ) -->
               <button 
                 v-if="order.status.toLowerCase() === 'pending'"
                 type="button"
-                style="background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; font-size: 0.85rem; padding: 0.4rem 0.8rem; border-radius: 6px; cursor: pointer;"
-                @click="cancelOrder(order.order_id)"
+                style="background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; font-size: 0.85rem; padding: 0.4rem 0.8rem; border-radius: 6px; cursor: pointer; transition: all 0.2s;"
+                @click="promptCancelOrder(order)"
               >
                 ยกเลิกคำสั่งซื้อ
               </button>
@@ -294,7 +313,52 @@ onMounted(() => {
     </div>
   </section>
 
-  <!-- Modal พิมพ์ใบเสร็จคำสั่งซื้อ (Receipt / Invoice) -->
+  <!-- Modal ยืนยันยกเลิกคำสั่งซื้อแบบสวยงาม (Modern Confirmation Modal) -->
+  <div 
+    v-if="cancelModalOpen" 
+    class="custom-modal-backdrop"
+    @click.self="cancelModalOpen = false"
+  >
+    <div class="custom-modal-card">
+      <div class="cancel-icon-circle">
+        <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="15" y1="9" x2="9" y2="15"></line>
+          <line x1="9" y1="9" x2="15" y2="15"></line>
+        </svg>
+      </div>
+      
+      <h3 style="margin: 0.25rem 0 0.5rem 0; font-size: 1.25rem; color: #111827; font-weight: 700;">
+        ยืนยันการยกเลิกคำสั่งซื้อ?
+      </h3>
+      
+      <p style="margin: 0; color: #6b7280; font-size: 0.925rem; line-height: 1.5;">
+        คุณต้องการยกเลิกคำสั่งซื้อ <strong style="color: #1f2937;">#{{ orderToCancel?.order_id }}</strong> ใช่หรือไม่?<br />
+        <span style="color: #dc2626; font-size: 0.85rem;">* สต็อกสินค้าจะถูกคืนกลับเข้าระบบทันที</span>
+      </p>
+
+      <div class="custom-modal-actions">
+        <button 
+          type="button" 
+          class="btn-modal-cancel" 
+          :disabled="isCancelling"
+          @click="cancelModalOpen = false"
+        >
+          กลับไป
+        </button>
+        <button 
+          type="button" 
+          class="btn-modal-confirm-delete" 
+          :disabled="isCancelling"
+          @click="confirmCancelOrder"
+        >
+          {{ isCancelling ? 'กำลังยกเลิก...' : 'ใช่, ยกเลิกออเดอร์นี้' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal พิมพ์ใบเสร็จคำสั่งซื้อ (Receipt / Invoice) คงไว้ตามเดิมทุกประการ -->
   <div 
     v-if="receiptModalOpen" 
     class="receipt-modal-backdrop"
@@ -408,6 +472,100 @@ onMounted(() => {
 </template>
 
 <style scoped>
+/* สไตล์กล่องยืนยันการยกเลิกคำสั่งซื้อ (Modern Confirmation Modal) */
+.custom-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 80;
+  padding: 1.25rem;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.custom-modal-card {
+  background: white;
+  border-radius: 16px;
+  max-width: 420px;
+  width: 100%;
+  padding: 1.75rem 1.5rem;
+  text-align: center;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  animation: popIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.cancel-icon-circle {
+  width: 56px;
+  height: 56px;
+  background: #fee2e2;
+  color: #dc2626;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 0.75rem auto;
+}
+
+.custom-modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.btn-modal-cancel {
+  flex: 1;
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+  padding: 0.65rem 1rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-modal-cancel:hover {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
+.btn-modal-confirm-delete {
+  flex: 1.2;
+  background: #dc2626;
+  color: white;
+  border: none;
+  padding: 0.65rem 1rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 6px -1px rgba(220, 38, 38, 0.25);
+  transition: all 0.15s;
+}
+
+.btn-modal-confirm-delete:hover:not(:disabled) {
+  background: #b91c1c;
+}
+
+.btn-modal-confirm-delete:disabled,
+.btn-modal-cancel:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Modal ใบเสร็จ */
 .receipt-modal-backdrop {
   position: fixed;
   inset: 0;

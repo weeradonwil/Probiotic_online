@@ -24,6 +24,17 @@ watch(() => route.fullPath, () => {
   userDropdownOpen.value = false
 })
 
+// ตั้งเวลาให้ Toast แจ้งเตือนหายไปเองอัตโนมัติภายใน 2.5 วินาที
+let noticeTimer = null
+watch(() => cart.notice, (newVal) => {
+  if (noticeTimer) clearTimeout(noticeTimer)
+  if (newVal) {
+    noticeTimer = setTimeout(() => {
+      cart.notice = ''
+    }, 2500)
+  }
+})
+
 function find() { 
   router.push({ path: '/products', query: search.value.trim() ? { q: search.value.trim() } : {} }) 
 }
@@ -49,6 +60,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   document.removeEventListener('click', closeDropdownOnClickOutside)
+  if (noticeTimer) clearTimeout(noticeTimer)
 })
 </script>
 
@@ -173,6 +185,7 @@ onUnmounted(() => {
       </div>
     </footer>
 
+    <!-- Toast แจ้งเตือนเมื่อเพิ่มสินค้าลงตะกร้า (จะจางหายไปเองอัตโนมัติ) -->
     <div v-if="cart.notice" class="toast" role="status">
       <Icon name="check" />
       {{ cart.notice }}

@@ -26,7 +26,7 @@ async function load() {
 const metrics = computed(() => [
   { label: 'ยอดชำระเงินยืนยันแล้ว', value: summary.value ? money(summary.value.sales) : '—', icon: 'cart' },
   { label: 'จำนวนคำสั่งซื้อ', value: summary.value?.orders ?? '—', icon: 'order' },
-  { label: 'จำนวนสินค้า', value: summary.value?.products ?? '—', icon: 'box' },
+  { label: 'จำนวนสินค้าภายในร้าน', value: summary.value?.products ?? '—', icon: 'box' },
   { label: 'รายการชำระเงิน', value: summary.value?.payments ?? '—', icon: 'payment' },
 ])
 
