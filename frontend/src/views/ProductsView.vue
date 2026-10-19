@@ -44,7 +44,7 @@ onMounted(async () => {
 })
 onBeforeUnmount(() => { clearTimeout(timer); requestNumber++ })
 </script>
-<template><PageBanner title="ผลิตภัณฑ์ของเรา" subtitle="เลือกผลิตภัณฑ์ที่เหมาะกับความต้องการของคุณ" /><section class="page-shell section catalog">
+<template><PageBanner image="/images/products-banner-v2.png" title="ผลิตภัณฑ์ของเรา" subtitle="เลือกผลิตภัณฑ์ที่เหมาะกับความต้องการของคุณ" /><section class="page-shell section catalog">
   <div class="catalog-toolbar"><div class="input-icon search-field"><Icon name="search" /><input v-model="query" type="search" placeholder="ค้นหาสินค้า..." aria-label="ค้นหาสินค้า" /></div><div class="filter-list"><button :class="['filter-chip', { active: !category }]" @click="category = ''">สินค้าทั้งหมด</button><button v-for="c in categories" :key="c.category_id" :class="['filter-chip', { active: category === String(c.category_id) }]" @click="category = String(c.category_id)">{{ c.name }}</button></div><select v-model="sort" aria-label="เรียงสินค้า"><option value="default">เรียงตามลำดับ</option><option value="price_asc">ราคาต่ำไปสูง</option><option value="price_desc">ราคาสูงไปต่ำ</option><option value="newest">เพิ่มล่าสุด</option></select></div>
   <div class="catalog-summary"><span>{{ total }} รายการ</span></div>
   <p v-if="error" class="error-box" role="alert">{{ error }} <button class="text-link" @click="load">ลองอีกครั้ง</button></p>

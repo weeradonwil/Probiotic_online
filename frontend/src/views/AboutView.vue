@@ -12,7 +12,7 @@ const values = [
 </script>
 
 <template>
-  <PageBanner title="เกี่ยวกับ Probiotic Shop" subtitle="เราเชื่อว่าสุขภาพที่ดี เริ่มต้นจากการใส่ใจทุกวัน" />
+  <PageBanner image="/images/about-banner-wellness.png" title="เกี่ยวกับ Probiotic Shop" subtitle="เราเชื่อว่าสุขภาพที่ดี เริ่มต้นจากการใส่ใจทุกวัน" />
 
   <main class="page-shell section about-page">
     <section class="about-story">
@@ -89,4 +89,5 @@ const values = [
   .about-value-card h3 { font-size: .82rem; }
   .about-value-card p { font-size: .72rem; }
 }
+
 </style>

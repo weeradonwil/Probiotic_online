@@ -134,6 +134,20 @@ const openReceiptModal = (order) => {
   receiptModalOpen.value = true
 }
 
+const isPaymentVerified = (order) => order?.payment_status === 'Verified'
+
+const paymentStatusLabel = (order) => {
+  if (isPaymentVerified(order)) return 'ชำระเงินยืนยันแล้ว'
+  if (order?.slip_image) return 'แนบสลิปแล้ว (รอตรวจสอบ)'
+  return 'ยังไม่ชำระเงิน/ยังไม่แนบสลิป'
+}
+
+const orderStatusLabel = (order) => {
+  if (order?.status === 'Paid' && !isPaymentVerified(order)) return 'รอตรวจสอบการชำระเงิน'
+  if (order?.status === 'cancelled' || order?.status === 'Cancelled') return 'ยกเลิกแล้ว'
+  return order?.status || 'ไม่ทราบสถานะ'
+}
+
 const printReceipt = () => {
   window.print()
 }
@@ -155,11 +169,12 @@ const downloadPDF = async () => {
     }
 
     const opt = {
-      margin:       10,
-      filename:     `receipt-order-${currentReceiptOrder.value?.order_id || 'invoice'}.pdf`,
+      margin:       0,
+      filename:     `${isPaymentVerified(currentReceiptOrder.value) ? 'receipt' : 'order-summary'}-${currentReceiptOrder.value?.order_id || 'order'}.pdf`,
       image:        { type: 'jpeg', quality: 0.98 },
       html2canvas:  { scale: 2, useCORS: true },
-      jsPDF:        { unit: 'mm', format: 'a5', orientation: 'portrait' }
+      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak:    { mode: ['css', 'legacy'], avoid: ['tr', '.document-header', '.customer-details', '.document-total'] }
     }
 
     await window.html2pdf().set(opt).from(element).save()
@@ -215,11 +230,11 @@ onMounted(() => {
             <span 
               style="display: inline-block; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.875rem; font-weight: 600;"
               :style="{
-                background: order.status === 'Paid' ? '#dcfce7' : order.status === 'Shipped' ? '#dbeafe' : order.status === 'cancelled' ? '#fee2e2' : '#fef9c3',
-                color: order.status === 'Paid' ? '#166534' : order.status === 'Shipped' ? '#1e40af' : order.status === 'cancelled' ? '#dc2626' : '#854d0e'
+                background: order.status === 'Paid' && isPaymentVerified(order) ? '#dcfce7' : order.status === 'Shipped' ? '#dbeafe' : ['cancelled', 'Cancelled'].includes(order.status) ? '#fee2e2' : '#fef9c3',
+                color: order.status === 'Paid' && isPaymentVerified(order) ? '#166534' : order.status === 'Shipped' ? '#1e40af' : ['cancelled', 'Cancelled'].includes(order.status) ? '#dc2626' : '#854d0e'
               }"
             >
-              สถานะ: {{ order.status === 'cancelled' ? 'ยกเลิกแล้ว' : order.status }}
+              สถานะ: {{ orderStatusLabel(order) }}
             </span>
           </div>
         </div>
@@ -256,8 +271,8 @@ onMounted(() => {
             <p style="margin: 0; font-size: 0.875rem; color: #4b5563;">ที่อยู่จัดส่ง: {{ order.shipping_address }}</p>
             <p style="margin: 0.25rem 0 0 0; font-size: 0.875rem;">
               การชำระเงิน: 
-              <strong :style="{ color: order.slip_image ? '#059669' : '#dc2626' }">
-                {{ order.slip_image ? 'แนบสลิปแล้ว (รอตรวจสอบ)' : 'ยังไม่ชำระเงิน/ยังไม่แนบสลิป' }}
+              <strong :style="{ color: isPaymentVerified(order) ? '#059669' : order.slip_image ? '#b45309' : '#dc2626' }">
+                {{ paymentStatusLabel(order) }}
               </strong>
             </p>
           </div>
@@ -274,7 +289,7 @@ onMounted(() => {
                 style="background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; font-size: 0.85rem; padding: 0.4rem 0.8rem; border-radius: 6px; cursor: pointer;"
                 @click="openReceiptModal(order)"
               >
-                🖨️ พิมพ์ใบเสร็จ
+                {{ isPaymentVerified(order) ? '🖨️ พิมพ์ใบเสร็จ' : '🖨️ พิมพ์สรุปคำสั่งซื้อ' }}
               </button>
 
               <!-- ปุ่มยกเลิกคำสั่งซื้อ (เปลี่ยนมาเปิด Modal สวยๆ) -->
@@ -386,58 +401,67 @@ onMounted(() => {
 
       <!-- เนื้อหาใบเสร็จรับเงิน -->
       <div class="receipt-body" id="printable-invoice">
-        <div class="receipt-header">
-          <div>
-            <h2 style="margin: 0; color: #166534;">PROBIOTIC SHOP</h2>
-            <small style="color: #64748b;">ใบเสร็จรับเงิน / คำสั่งซื้อ (Receipt & Order)</small>
+        <header class="document-header">
+          <div class="document-brand">
+            <h2>Probiotic <span>Shop</span></h2>
+            <p>Good Bacteria · Better Life</p>
           </div>
-          <div style="text-align: right;">
-            <strong style="font-size: 1.1rem; display: block;">#{{ currentReceiptOrder?.order_id }}</strong>
-            <small style="color: #64748b;">{{ new Date(currentReceiptOrder?.created_at).toLocaleDateString('th-TH') }}</small>
+          <div class="document-type">
+            <span class="document-status" :class="{ 'is-paid': isPaymentVerified(currentReceiptOrder) }">
+              {{ isPaymentVerified(currentReceiptOrder) ? 'ชำระเงินแล้ว' : 'รอตรวจสอบ / ยังไม่ชำระ' }}
+            </span>
+            <h1>{{ isPaymentVerified(currentReceiptOrder) ? 'ใบเสร็จรับเงิน' : 'สรุปคำสั่งซื้อ' }}</h1>
+            <p v-if="!isPaymentVerified(currentReceiptOrder)" class="document-notice">เอกสารนี้ยังไม่ใช่ใบเสร็จรับเงิน</p>
           </div>
+        </header>
+
+        <div class="document-meta">
+          <div><span>เลขที่คำสั่งซื้อ</span><strong>#{{ currentReceiptOrder?.order_id }}</strong></div>
+          <div><span>วันที่สั่งซื้อ</span><strong>{{ new Date(currentReceiptOrder?.created_at).toLocaleString('th-TH') }}</strong></div>
+          <div><span>สถานะคำสั่งซื้อ</span><strong>{{ orderStatusLabel(currentReceiptOrder) }}</strong></div>
         </div>
 
-        <div class="receipt-info">
+        <section class="customer-details">
           <div>
-            <strong>ลูกค้า:</strong> {{ auth.user?.full_name || auth.user?.username }}<br />
-            <strong>ที่อยู่จัดส่ง:</strong> {{ currentReceiptOrder?.shipping_address }}
+            <h3>ข้อมูลลูกค้า</h3>
+            <p><span>ชื่อ</span><strong>{{ auth.user?.full_name || auth.user?.username }}</strong></p>
+            <p><span>ที่อยู่จัดส่ง</span><strong>{{ currentReceiptOrder?.shipping_address }}</strong></p>
           </div>
-          <div style="text-align: right;">
-            <strong>สถานะ:</strong> {{ currentReceiptOrder?.status }}<br />
-            <strong>วิธีชำระเงิน:</strong> โอนผ่านธนาคาร
+          <div>
+            <h3>ข้อมูลการชำระเงิน</h3>
+            <p><span>สถานะ</span><strong>{{ paymentStatusLabel(currentReceiptOrder) }}</strong></p>
+            <p><span>ช่องทาง</span><strong>{{ currentReceiptOrder?.payment_method || 'โอนผ่านธนาคาร' }}</strong></p>
           </div>
-        </div>
+        </section>
 
         <table class="receipt-table">
           <thead>
             <tr>
-              <th style="text-align: left;">รายการ</th>
-              <th style="text-align: center;">จำนวน</th>
-              <th style="text-align: right;">ราคา</th>
-              <th style="text-align: right;">รวม</th>
+              <th class="item-name">รายการสินค้า</th>
+              <th class="item-quantity">จำนวน</th>
+              <th class="item-price">ราคาต่อชิ้น</th>
+              <th class="item-subtotal">รวม</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="item in currentReceiptOrder?.items" :key="item.order_item_id">
-              <td>{{ item.product_name }}</td>
-              <td style="text-align: center;">{{ item.quantity }}</td>
-              <td style="text-align: right;">{{ money(item.price || (item.subtotal / item.quantity)) }}</td>
-              <td style="text-align: right;">{{ money(item.subtotal) }}</td>
+              <td class="item-name">{{ item.product_name }}</td>
+              <td class="item-quantity">{{ item.quantity }}</td>
+              <td class="item-price">{{ money(item.price || (item.subtotal / item.quantity)) }}</td>
+              <td class="item-subtotal">{{ money(item.subtotal) }}</td>
             </tr>
           </tbody>
-          <tfoot>
-            <tr>
-              <td colspan="3" style="text-align: right; font-weight: bold; border-top: 1px solid #cbd5e1;">ยอดรวมสุทธิ</td>
-              <td style="text-align: right; font-weight: bold; color: #166534; font-size: 1.1rem; border-top: 1px solid #cbd5e1;">
-                {{ money(currentReceiptOrder?.total_amount) }}
-              </td>
-            </tr>
-          </tfoot>
         </table>
 
-        <div style="margin-top: 1.5rem; text-align: center; border-top: 1px dashed #cbd5e1; padding-top: 1rem;">
-          <small style="color: #64748b;">ขอบคุณที่ไว้วางใจเลือกใช้บริการผลิตภัณฑ์สุขภาพจาก Probiotic Shop</small>
+        <div class="document-total">
+          <span>ยอดรวมสุทธิ</span>
+          <strong>{{ money(currentReceiptOrder?.total_amount) }}</strong>
         </div>
+
+        <footer class="document-footer">
+          <p>ขอบคุณที่ไว้วางใจเลือกใช้บริการ Probiotic Shop</p>
+          <span>เอกสารจัดทำโดยระบบ Probiotic Shop</span>
+        </footer>
       </div>
     </div>
   </div>
@@ -569,90 +593,146 @@ onMounted(() => {
 .receipt-modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(15, 23, 42, 0.68);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   z-index: 70;
-  padding: 1rem;
+  padding: 24px;
+  overflow: auto;
 }
 
 .receipt-card {
-  background: white;
-  border-radius: 12px;
-  max-width: 600px;
+  background: #fff;
+  border-radius: 14px;
+  max-width: 980px;
   width: 100%;
-  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 24px 70px rgba(2, 20, 14, 0.28);
   overflow: hidden;
 }
 
 .receipt-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 0.5rem;
-  padding: 1rem 1.5rem;
-  background: #f8fafc;
+  gap: 10px;
+  padding: 14px 20px;
+  background: #f8fbf9;
   border-bottom: 1px solid #e2e8f0;
 }
 
 .receipt-body {
-  padding: 2rem;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  width: 210mm;
+  min-height: 296mm;
+  margin: 0 auto;
+  padding: 18mm;
+  background: #fff;
+  color: #24352d;
   font-family: inherit;
-  color: #1e293b;
+  font-size: 11pt;
+  line-height: 1.55;
 }
 
-.receipt-header {
+.document-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  border-bottom: 2px solid #166534;
-  padding-bottom: 1rem;
-  margin-bottom: 1.5rem;
+  gap: 24px;
+  padding-bottom: 24px;
+  border-bottom: 2px solid #087044;
 }
 
-.receipt-info {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.875rem;
-  line-height: 1.6;
-  margin-bottom: 1.5rem;
-  background: #f8fafc;
-  padding: 0.75rem 1rem;
-  border-radius: 6px;
+.document-brand h2 {
+  margin: 0;
+  color: #064e35;
+  font-size: 24pt;
+  font-weight: 750;
+  letter-spacing: -0.7px;
+  line-height: 1.15;
 }
+
+.document-brand h2 span { color: #168052; font-weight: 450; }
+.document-brand p { margin: 6px 0 0; color: #64756c; font-size: 9pt; letter-spacing: 0.3px; }
+.document-type { text-align: right; }
+.document-type h1 { margin: 12px 0 0; color: #123d2c; font-size: 21pt; line-height: 1.2; }
+.document-status { display: inline-block; padding: 4px 10px; border-radius: 999px; background: #fff3cd; color: #855b00; font-size: 9pt; font-weight: 700; }
+.document-status.is-paid { background: #dcfce7; color: #166534; }
+.document-notice { margin: 4px 0 0; color: #9a6700; font-size: 8.5pt; }
+
+.document-meta {
+  display: grid;
+  grid-template-columns: 0.8fr 1.5fr 1fr;
+  gap: 16px;
+  padding: 20px 0;
+  border-bottom: 1px solid #e4ebe6;
+}
+.document-meta div, .customer-details p { display: flex; flex-direction: column; gap: 3px; margin: 0; }
+.document-meta span, .customer-details p span { color: #718078; font-size: 8.5pt; }
+.document-meta strong, .customer-details p strong { color: #25382f; font-size: 10pt; font-weight: 600; overflow-wrap: anywhere; }
+
+.customer-details {
+  display: grid;
+  grid-template-columns: 1.25fr 1fr;
+  gap: 20px;
+  margin: 22px 0 26px;
+}
+.customer-details > div { padding: 16px 18px; border: 1px solid #e2ebe5; border-radius: 8px; background: #fbfdfb; }
+.customer-details h3 { margin: 0 0 12px; color: #07583a; font-size: 10pt; }
+.customer-details p + p { margin-top: 10px; }
 
 .receipt-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.875rem;
-  margin-bottom: 1.5rem;
+  table-layout: fixed;
+  margin: 0;
+  font-size: 10pt;
 }
 
 .receipt-table th {
-  padding: 0.5rem;
-  background: #f1f5f9;
+  padding: 11px 12px;
+  background: #eff6f1;
+  color: #174c35;
   font-weight: 600;
-  border-bottom: 1px solid #cbd5e1;
+  border-top: 1px solid #dce8df;
+  border-bottom: 1px solid #cbdccf;
+  text-align: right;
 }
 
 .receipt-table td {
-  padding: 0.65rem 0.5rem;
-  border-bottom: 1px solid #f1f5f9;
+  padding: 13px 12px;
+  border-bottom: 1px solid #e8eee9;
+  color: #384a40;
+  vertical-align: top;
+  overflow-wrap: anywhere;
 }
+.receipt-table .item-name { width: 52%; text-align: left; }
+.receipt-table .item-quantity { width: 12%; text-align: center; }
+.receipt-table .item-price { width: 18%; text-align: right; white-space: nowrap; }
+.receipt-table .item-subtotal { width: 18%; text-align: right; white-space: nowrap; font-weight: 650; }
+.receipt-table tr { break-inside: avoid; page-break-inside: avoid; }
+.receipt-table thead { display: table-header-group; }
+
+.document-total { display: flex; justify-content: flex-end; align-items: baseline; gap: 30px; margin-top: 22px; padding: 16px 18px; border-radius: 8px; background: #f1f8f3; }
+.document-total span { color: #53675b; font-size: 11pt; font-weight: 600; }
+.document-total strong { color: #07583a; font-size: 19pt; font-weight: 750; white-space: nowrap; }
+.document-footer { margin-top: auto; padding-top: 34px; text-align: center; color: #607268; }
+.document-footer p { margin: 0 0 4px; color: #17623f; font-size: 10pt; font-weight: 600; }
+.document-footer span { font-size: 8pt; }
 
 @media print {
-  body * {
+  @page { size: A4 portrait; margin: 0; }
+  :global(body) { margin: 0 !important; background: #fff !important; }
+  :global(body *) {
     visibility: hidden !important;
   }
-  .receipt-modal-backdrop {
+  .receipt-modal-backdrop, .receipt-card {
+    visibility: visible !important;
     position: static !important;
     background: none !important;
     padding: 0 !important;
-  }
-  .receipt-card {
-    box-shadow: none !important;
-    max-width: 100% !important;
-    border-radius: 0 !important;
+    border: 0 !important;
   }
   #printable-invoice, #printable-invoice * {
     visibility: visible !important;
@@ -661,8 +741,12 @@ onMounted(() => {
     position: absolute !important;
     left: 0 !important;
     top: 0 !important;
-    width: 100% !important;
-    padding: 1rem !important;
+    width: 210mm !important;
+    min-height: 296mm !important;
+    margin: 0 !important;
+    padding: 18mm !important;
+    box-shadow: none !important;
+    border: 0 !important;
   }
   .print-hide {
     display: none !important;

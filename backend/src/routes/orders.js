@@ -247,6 +247,36 @@ router.patch('/admin/:id/status', authenticate, requireRole('Admin'), async (req
   try {
     await connection.beginTransaction();
 
+    const [rows] = await connection.query(
+      `SELECT o.status, p.payment_status, p.slip_image
+       FROM orders o
+       LEFT JOIN payments p ON p.order_id = o.order_id
+       WHERE o.order_id = ?
+       FOR UPDATE`,
+      [orderId]
+    );
+    if (rows.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({ message: 'ไม่พบคำสั่งซื้อ' });
+    }
+
+    const current = rows[0];
+    const nextStatus = status || current.status;
+    const nextPaymentStatus = payment_status || current.payment_status;
+
+    if (status === 'Paid' && (!current.slip_image || nextPaymentStatus !== 'Verified')) {
+      await connection.rollback();
+      return res.status(400).json({ message: 'ต้องแนบสลิปและยืนยันการชำระเงินก่อนเปลี่ยนสถานะเป็น Paid' });
+    }
+    if (status === 'Shipped' && nextPaymentStatus !== 'Verified') {
+      await connection.rollback();
+      return res.status(400).json({ message: 'ต้องยืนยันการชำระเงินก่อนจัดส่งสินค้า' });
+    }
+    if (payment_status === 'Verified' && nextStatus === 'Pending') {
+      await connection.rollback();
+      return res.status(400).json({ message: 'เมื่อยืนยันการชำระเงินแล้ว กรุณาเปลี่ยนสถานะคำสั่งซื้อเป็น Paid พร้อมกัน' });
+    }
+
     if (status) {
       await connection.query('UPDATE orders SET status = ? WHERE order_id = ?', [status, orderId]);
     }
