@@ -362,6 +362,45 @@ td { color: #4d6256; }
 .metric { display: flex; align-items: center; gap: 16px; background: linear-gradient(135deg,white 65%,#e8f7e9); }
 .metric h2 { font-size: .82rem; line-height: 1.5; }
 .metric strong { font-size: 1.6rem; }
+.monthly-report-panel { margin-bottom: 20px; padding: 24px; }
+.monthly-report-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 22px; }
+.monthly-report-heading h2 { margin: 5px 0 4px; }
+.monthly-report-heading p { margin: 0; font-size: .84rem; }
+.monthly-report-controls { display: flex; align-items: flex-end; gap: 10px; flex: 0 0 auto; }
+.month-picker { display: grid; gap: 5px; color: #566b5f; font-size: .75rem; font-weight: 650; }
+.month-picker input { min-height: 44px; padding: 8px 11px; border: 1px solid var(--border); border-radius: 11px; color: var(--deep); background: #fff; }
+.monthly-report-cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.monthly-stat { display: flex; min-width: 0; min-height: 118px; flex-direction: column; justify-content: center; gap: 7px; padding: 16px; border: 1px solid #e5eee7; border-radius: 15px; background: #fbfdfb; }
+.monthly-stat-revenue { border-color: #cfe5d4; background: linear-gradient(135deg,#f1faf2,#fff); }
+.monthly-stat > span { color: #63736a; font-size: .76rem; }
+.monthly-stat > strong { color: #133e2d; font-size: clamp(1.04rem, 1.7vw, 1.35rem); line-height: 1.4; font-variant-numeric: tabular-nums; }
+.monthly-stat > small { color: #87938c; font-size: .69rem; line-height: 1.5; }
+.monthly-stat > .monthly-comparison { font-size: 1rem; }
+.monthly-comparison.positive { color: #16804a; }
+.monthly-comparison.negative { color: #b33e3e; }
+.monthly-comparison.neutral { color: #69776f; }
+.monthly-report-details { display: grid; grid-template-columns: minmax(210px, .8fr) minmax(0, 1.5fr); gap: 26px; margin-top: 22px; padding-top: 20px; border-top: 1px solid #e8efea; }
+.monthly-subheading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.monthly-subheading h3 { margin: 0; color: var(--deep); font-size: .98rem; }
+.monthly-subheading > span { color: #708077; font-size: .72rem; white-space: nowrap; }
+.monthly-detail-note { margin: 4px 0 12px; color: #89948d; font-size: .72rem; }
+.monthly-status-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.monthly-status-item { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 9px 10px; border: 1px solid #edf1ed; border-radius: 11px; color: #66746b; background: #fbfcfb; font-size: .75rem; }
+.monthly-status-item strong { margin-left: auto; color: #254736; font-variant-numeric: tabular-nums; }
+.status-dot { width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%; background: #9aa7a0; }
+.status-pending { background: #dfa52c; }
+.status-paid { background: #1d9a5b; }
+.status-shipped { background: #4385c4; }
+.status-cancelled { background: #c45252; }
+.status-other { background: #8a6dbc; }
+.monthly-products-table { font-size: .75rem; }
+.monthly-products-table th, .monthly-products-table td { padding: 9px 8px; }
+.monthly-products-table th:nth-child(n+2), .monthly-products-table td:nth-child(n+2) { text-align: right; white-space: nowrap; }
+.monthly-products-table td:first-child { color: #334c3f; }
+.product-rank { display: inline-grid; width: 22px; height: 22px; margin-right: 8px; place-items: center; border-radius: 50%; color: #397b50; background: #eaf5eb; font-size: .67rem; font-weight: 750; }
+.monthly-no-products { margin: 0; padding: 17px; border-radius: 11px; color: #7b8980; background: #f8faf8; font-size: .78rem; text-align: center; }
+.monthly-report-loading { margin-block: 0; }
+.monthly-report-error { margin: 0; }
 .chart-panel { margin-bottom: 20px; }
 .sales-chart { width: 100%; height: auto; max-height: 270px; display: block; }
 .chart-labels { display: flex; justify-content: space-between; font-size: .75rem; color: var(--muted); }
@@ -372,6 +411,7 @@ td { color: #4d6256; }
   .header-search { max-width: 165px; }
   .category-section { grid-template-columns: 1fr; }
   .category-section > div:first-child { display: flex; align-items: center; justify-content: space-between; }
+  .monthly-report-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .benefit-section { grid-template-columns: repeat(4, 1fr); gap: 20px; }
   .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .admin-product-grid.editing { grid-template-columns: minmax(0, 1fr); }
@@ -386,6 +426,8 @@ td { color: #4d6256; }
   .contact-channel-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .contact-page-banner h1 { font-size: 2.15rem; }
   .contact-channel-grid { grid-template-columns: 1fr; }
+  .monthly-report-heading { align-items: flex-start; flex-direction: column; }
+  .monthly-report-details { grid-template-columns: 1fr; gap: 20px; }
   .benefit-section { grid-template-columns: 1fr 1fr; }
   .auth-form { padding: 32px 26px; }
   .auth-art { min-height: 600px; padding: 42px 30px; }
@@ -425,6 +467,14 @@ td { color: #4d6256; }
   .section-heading { align-items: start; }
   .section-heading .button { padding: 8px 12px; font-size: .75rem; min-height: 38px; }
   .section-heading p { font-size: .78rem; }
+  .monthly-report-panel { padding: 18px; }
+  .monthly-report-controls { width: 100%; align-items: flex-end; }
+  .month-picker { flex: 1; }
+  .month-picker input { width: 100%; }
+  .monthly-report-controls > .button { padding-inline: 13px; font-size: .78rem; white-space: nowrap; }
+  .monthly-stat { min-height: 106px; padding: 12px; }
+  .monthly-status-list { grid-template-columns: 1fr; }
+  .monthly-products-table { min-width: 400px; }
   .benefit-section { gap: 20px; }
   .benefit-section > div { grid-column: 1 / -1; }
   .benefit-section > article { gap: 10px; }
