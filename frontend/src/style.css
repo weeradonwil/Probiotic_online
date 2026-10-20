@@ -123,6 +123,67 @@ p { color: var(--muted); line-height: 1.8; }
 .pagination button { width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--border); background: #f5faf5; color: var(--green); font-size: 1.4rem; }
 .error-box, .success-box, .notice, .empty-state { padding: 14px 18px; border-radius: 12px; margin: 12px 0; line-height: 1.7; font-size: .9rem; }
 .error-box { background: #fff0ec; color: #9f3025; }
+.admin-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  overflow-y: auto;
+  padding: 24px;
+  background: rgb(10 35 27 / 58%);
+  backdrop-filter: blur(5px);
+}
+.admin-delete-dialog {
+  width: min(100%, 480px);
+  padding: 30px;
+  border: 1px solid #e6eee8;
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 28px 90px rgb(4 28 18 / 28%);
+  animation: admin-delete-enter .18s ease-out;
+}
+.admin-delete-symbol {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  margin-bottom: 16px;
+  place-items: center;
+  border-radius: 16px;
+  color: #b73535;
+  background: #fff0ed;
+}
+.admin-delete-eyebrow { margin: 0 0 5px; color: #a93a35; font-size: .82rem; font-weight: 700; }
+.admin-delete-dialog h2 { margin: 0 0 18px; color: #123f2d; font-size: 1.45rem; line-height: 1.4; }
+.admin-delete-product {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 14px;
+  padding: 12px;
+  border: 1px solid #e7eee9;
+  border-radius: 14px;
+  background: #f8faf8;
+}
+.admin-delete-product .product-photo { width: 58px; height: 58px; flex: 0 0 58px; overflow: hidden; border-radius: 10px; }
+.admin-delete-product .product-photo img { width: 100%; height: 100%; object-fit: cover; }
+.admin-delete-product > div:last-child { display: grid; min-width: 0; gap: 4px; }
+.admin-delete-product strong { overflow-wrap: anywhere; color: #193c2e; }
+.admin-delete-product span { color: #718078; font-size: .84rem; }
+.admin-delete-description { margin: 16px 0 0; color: #66766e; font-size: .9rem; line-height: 1.7; }
+.admin-delete-error { margin-top: 14px; }
+.admin-delete-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
+.admin-delete-confirm { border-color: #b73535; color: #fff; background: #b73535; }
+.admin-delete-confirm:hover:not(:disabled) { border-color: #982b2b; background: #982b2b; }
+.admin-delete-actions button { min-width: 118px; }
+@keyframes admin-delete-enter { from { opacity: 0; transform: translateY(8px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@media (max-width: 520px) {
+  .admin-modal-backdrop { padding: 14px; }
+  .admin-delete-dialog { padding: 22px; border-radius: 18px; }
+  .admin-delete-dialog h2 { font-size: 1.25rem; }
+  .admin-delete-actions { flex-direction: column-reverse; }
+  .admin-delete-actions button { width: 100%; }
+}
 .success-box { background: #eaf8ed; color: #22753e; }
 .notice { background: #fff9e9; color: #84652f; font-size: .8rem; }
 .empty-state { padding: 32px; text-align: center; background: #f5faf6; color: var(--muted); }
